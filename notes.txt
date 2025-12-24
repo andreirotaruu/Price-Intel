@@ -1,0 +1,7 @@
+Profit ROI	Velocity	Recommendation
+
+$0 | <5% | Any | WAIT |
+$0 | ≥10% | FAST | BUY |
+$0 | ≥10% | MEDIUM | CONSIDER |
+$0 | ≥15% | Any | BUY |
+≤ 0 | Any | Any | SKIP |
