@@ -4,6 +4,7 @@
 #define logic for getting the opportunity index
 
 #to-do add score
+#add category based fees
 def get_opportunity_index(buy_price, sell_price, sold_count, fee_rate = .14):
     
     fees = sell_price * fee_rate
