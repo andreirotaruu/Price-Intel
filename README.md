@@ -66,6 +66,24 @@ Shopsavvy API
 
 eBay API
 
+## Opportunity Logic
+
+Opportunity is calculated using:
+- Estimated resale fees (category-based)
+- Net profit
+- ROI threshold
+- Recent sales velocity (7–14 days)
+
+Recommendations are conservative by design to avoid false positives.
+
+## Opportunity Scoring
+
+Opportunity scores are computed using a weighted heuristic combining:
+- ROI (capital efficiency)
+- Recent sales velocity (liquidity)
+- Estimated profit (absolute return)
+
+Weights are chosen to normalize these signals onto a comparable scale and reflect typical reseller decision-making priorities.
 
 ## Out of Scope for v1:
 
