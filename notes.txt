@@ -5,3 +5,6 @@ $0 | ≥10% | FAST | BUY |
 $0 | ≥10% | MEDIUM | CONSIDER |
 $0 | ≥15% | Any | BUY |
 ≤ 0 | Any | Any | SKIP |
+
+
+V1 products are identified by UPC when available.

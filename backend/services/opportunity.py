@@ -1,8 +1,4 @@
 
-
-
-#define logic for getting the opportunity index
-
 CATEGORY_FEES = {
     "gpu": 0.14,
     "console": 0.13,
@@ -22,6 +18,8 @@ def classify_velocity(sold_count):
         return "MEDIUM"
     else:
         return "SLOW"
+    
+#define logic for getting the opportunity score
 
 def get_opportunity_index(buy_price, sell_price, sold_count, category):
     

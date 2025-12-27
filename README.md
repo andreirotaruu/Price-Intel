@@ -66,6 +66,8 @@ Shopsavvy API
 
 eBay API
 
+V1 products are identified by UPC when available.
+
 ## Opportunity Logic
 
 Opportunity is calculated using:
