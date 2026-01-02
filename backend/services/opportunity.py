@@ -23,11 +23,18 @@ def classify_velocity(sold_count):
 
 def get_opportunity_index(buy_price, sell_price, sold_count, category):
     
+    if sold_count == 0:
+        return {
+            "reccomendation": "NO-SIGNAL",
+            "reason": "No Units Sold",
+            "opportunity_score": 0,
+        }
+    
     #get and calculate necessary stats
     fee_rate = CATEGORY_FEES.get(category, .15)
     fees = sell_price * fee_rate
 
-    profit = sell_price - buy_price - fee_rate
+    profit = sell_price - buy_price - fees
     roi = profit / buy_price if buy_price else 0
 
     velocity = classify_velocity(sold_count)

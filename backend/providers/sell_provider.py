@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict
+
 class SellPriceProvider(ABC):
 
     @abstractmethod
