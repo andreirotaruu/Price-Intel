@@ -1,3 +1,7 @@
+"""
+This is the interface that sets the standard for the buy price provider
+"""
+
 from abc import ABC, abstractmethod
 
 class BuyPriceProvider(ABC):

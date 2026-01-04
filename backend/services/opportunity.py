@@ -57,6 +57,8 @@ def get_opportunity_index(buy_price, sell_price, sold_count, category):
     else:
         recommendation = "BUY"
 
+
+    #return all metrics needed and opportunity score
     return {
         "buy_price": round(buy_price, 2),
         "sell_price": round(sell_price, 2),
