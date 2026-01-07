@@ -16,10 +16,15 @@ class EbayScrapeSellProvider(SellPriceProvider):
         
         #load url parameters to search for specific product and get on that page
         params = {
-            "_nkw": product_query,
+            "_nkw": product_query.name,
             "LH_Sold": "1",
             "LH_Complete": "1"
         }
+
+        if product_query.category:
+            ebay_category = product_query.get_category_id()
+            if ebay_category:
+                params["_sacat"] = ebay_category
 
         #user agent so we not sus
         headers = { "User-Agent": "ResellIntel/1.0 (price intel)" }

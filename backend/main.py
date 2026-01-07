@@ -2,6 +2,7 @@ from providers.mock_buy_provider import MockBuyProvider
 from providers.mock_sell_provider import MockSellProvider
 from services.opportunity import get_opportunity_index
 from providers.ebay_scrape_sell_provider import EbayScrapeSellProvider
+from domain.product_query import ProductQuery
 
 def analyze_product(upc: str, category: str):
     buy_provider = MockBuyProvider()
@@ -11,7 +12,11 @@ def analyze_product(upc: str, category: str):
     sell_data = sell_provider.get_sell_metrics(upc)
 
     ebay_sell_provider = EbayScrapeSellProvider()
-    ebay_sell_data = ebay_sell_provider.get_sell_metrics("RTX 4070")
+    product_query = ProductQuery(
+        name = 'RTX 4070',
+        category = 'gpu'
+    )
+    ebay_sell_data = ebay_sell_provider.get_sell_metrics(product_query)
 
     print()
     print(ebay_sell_data)
