@@ -26,7 +26,7 @@ class BestBuyProvider(BuyPriceProvider):
             response = requests.get(self.SEARCH_URL, params=params, headers=headers, timeout=10)
             print(response.status_code)
         except Exception as e:
-            print("Best Buy Request Failed: " + e)
+            print("Best Buy Request Failed: ", e)
 
         #get response
         if response.status_code != 200:
