@@ -21,6 +21,7 @@ class EbayScrapeSellProvider(SellPriceProvider):
             "LH_Complete": "1"
         }
 
+        #if a sacat # is present we can look up the specific category of that product
         if product_query.category:
             ebay_category = product_query.get_category_id()
             if ebay_category:
@@ -35,6 +36,7 @@ class EbayScrapeSellProvider(SellPriceProvider):
         #handle error response
         if response.status_code != 200:
 
+            print("There was an error when getting the page for EBay")
             return None
         
         #get desired page html
