@@ -1,4 +1,4 @@
-### Resell Price Intel Engine
+#### Resell Price Intel Engine
 
 This is a price intel engine that will gather data for popular items that are resold and give valuable insights on reselling opportunity for the specific product
 
@@ -6,24 +6,25 @@ This is a price intel engine that will gather data for popular items that are re
 
 "If I buy this item today, is it likely to flip for a profit soon?"
 
-## V1 focus 
+### V1 focus 
 
-# Products Covered
+## Products Covered
 
 1. GPUs
 2. Gaming Consoles
 
-# Data Sources
+## Data Sources
 
-1. Buy Side: ShopSavvy API
+1. Buy Side: Best Buy scraping
 
-2. Sell Side: Ebay sold listings API
+2. Sell Side: Ebay sold listings scraping
 
 ## V1 Data contract
 
 # Input:
 
-Product identifier (name or UPC)
+1. Product identifier (name or UPC)
+2. Category
 
 # Output:
 
@@ -54,17 +55,19 @@ Velocity is determined by the number of sold listings within the last 7–14 day
 
 # Backend:
 
-Python
+1. Python
 
-FastAPI
+2. FastAPI
 
-SQLite
+3. PostgreSQL
+
+# Frontend
+
+1. React (states updated by FastAPI backend)
 
 # Data access:
 
-Shopsavvy API
-
-eBay API
+1. Ebay Scraping
 
 V1 products are identified by UPC when available.
 
@@ -96,3 +99,14 @@ Weights are chosen to normalize these signals onto a comparable scale and reflec
 3. User accounts
 
 4. Inventory management
+
+### To Add in V2
+
+- Need to get access to APIs for seamless and more accurate data
+
+## Data access
+
+# Need to get approved for
+1. Best Buy API
+2. EBay API
+3. Alibaba API
