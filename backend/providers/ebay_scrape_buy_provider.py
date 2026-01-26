@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
-from providers.buy_provider import BuyPriceProvider
-from domain.product_query import ProductQuery
+from backend.providers.buy_provider import BuyPriceProvider
+from backend.domain.product_query import ProductQuery
 import requests
 import statistics
 

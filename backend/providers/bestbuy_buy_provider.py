@@ -1,8 +1,8 @@
 from bs4 import BeautifulSoup
 import re
 import requests
-from providers.buy_provider import BuyPriceProvider
-from domain.product_query import ProductQuery
+from backend.providers.buy_provider import BuyPriceProvider
+from backend.domain.product_query import ProductQuery
 from typing import Optional
 import statistics
 

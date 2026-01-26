@@ -1,7 +1,7 @@
 from bs4 import BeautifulSoup
 import requests
-from providers.sell_provider import SellPriceProvider
-from domain.product_query import ProductQuery
+from backend.providers.sell_provider import SellPriceProvider
+from backend.domain.product_query import ProductQuery
 import statistics
 
 class EbayScrapeSellProvider(SellPriceProvider):
