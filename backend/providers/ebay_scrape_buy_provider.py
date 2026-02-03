@@ -55,5 +55,5 @@ class EbayPriceProvider(BuyPriceProvider):
                 except:
                     print(f"could not parse: {text}")
 
-        return statistics.median(prices)
+        return {"price": statistics.median(prices)}
     
