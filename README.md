@@ -58,12 +58,19 @@ Velocity is determined by the number of sold listings within the last 7–14 day
 1. Python
 
 2. FastAPI
+- Dynamically updating the react frontend and posting to the database by creating REST APIs
+- Fast because of async support and high-throughput handling 
+- Validates JSON, Rejects bad requests, and generates error responses 
 
 3. PostgreSQL
+- Caching results of scraping from Ebay buy and sell side services 
 
 # Frontend
 
 1. React (states updated by FastAPI backend)
+- Reusing components, updating states, mobile friendliness
+- User action causes react frontend to trigger FastAPI endpoint using fetch that runs backend logic like updating database and JSON response.
+- FastAPI returns JSON and react re-renders component
 
 # Data access:
 

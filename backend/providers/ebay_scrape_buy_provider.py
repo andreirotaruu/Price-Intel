@@ -25,7 +25,15 @@ class EbayPriceProvider(BuyPriceProvider):
             if category:
                 params["_sacat"] = category
 
-        headers = { "User-Agent": "ResellIntel/1.0 (price intel)" }
+        #user agent to bypass bot prevention
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/136.0.0.0 Safari/537.36"
+            ),
+            "Accept-Language": "en-US,en;q=0.9"
+        }
 
         #get the page response
         response = requests.get(self.SEARCH_URL, params=params, headers=headers)
