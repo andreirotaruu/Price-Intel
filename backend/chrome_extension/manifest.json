@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Price Intel",
+  "version": "0.1",
+  "description": "Resale opportunity analyzer",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": [
+    "https://www.ebay.com/*",
+    "http://localhost:8000/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://www.ebay.com/itm/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Price Intel"
+  }
+}

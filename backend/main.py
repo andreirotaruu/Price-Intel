@@ -8,12 +8,21 @@ from sqlalchemy.orm import Session
 from backend.db.database import SessionLocal
 from backend.db import models
 from backend.db.database import engine
+from backend.schemas.analyze_request import AnalyzeRequest
+from fastapi.middleware.cors import CORSMiddleware
 
 #create models
 models.Base.metadata.create_all(bind=engine)
 #initialize fastAPI
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def get_db():
 
@@ -42,46 +51,64 @@ def test_insert(db: Session = Depends(get_db)):
     return record
 
 #setting this endpoint to call this function
-@app.get("/analyze")
-def analyze(category: str, name: str, db: Session = Depends(get_db)):
+@app.post("/analyze")
+def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
 
-    product_query = ProductQuery(name=name, category=category)
+    name = request.name
+    category = request.category
 
-    #instances of buy and sell providers
-    ebay_sell_provider = EbayScrapeSellProvider()
-    ebay_buy_provider = EbayPriceProvider()
+    #check cache
+    cached = db.query(models.PriceCache).filter(
+        models.PriceCache.name == name,
+        models.PriceCache.category == category
+    ).first()
 
-    #getting the buy and sell data from scraping modules 
-    sell_data = ebay_sell_provider.get_sell_metrics(product_query)
-    buy_data = ebay_buy_provider.get_buy_price(product_query)
+    if cached:
+        opportunity = get_opportunity_index(
+            buy_price=cached.buy_price,
+            sell_price=cached.sell_price,
+            sold_count=cached.sold_count,
+            category=category
+        )
 
-    print("SELL DATA:", sell_data)
-    print("BUY DATA:", buy_data)
+        return {
+            "source": "cache",
+            "buy_price": cached.buy_price,
+            "sell_price": cached.sell_price,
+            "sold_count": cached.sold_count,
+            "opportunity": opportunity
+        }
 
-    #create the entry for the price cache table
-    cache_entry = models.PriceCache(
-        name = name, 
-        category = category, 
-        buy_price = buy_data["price"],
-        sell_price = sell_data['median_price'],
-        sold_count = sell_data['sold_count']
+    #replace scraping with request data
+    buy_price = request.current_price
+
+    # TODO: replace this later with real provider
+    sell_price = 500  # mock
+    sold_count = 20   # mock
+
+    opportunity = get_opportunity_index(
+        buy_price=buy_price,
+        sell_price=sell_price,
+        sold_count=sold_count,
+        category=category
     )
 
-    #adding the cache entry to db in postgres 
+    #store in DB
+    cache_entry = models.PriceCache(
+        name=name,
+        category=category,
+        buy_price=buy_price,
+        sell_price=sell_price,
+        sold_count=sold_count
+    )
+
     db.add(cache_entry)
     db.commit()
 
-    #returning the data
     return {
-        "buy": buy_data,
-        "sell": sell_data,
-        "opportunity": get_opportunity_index(
-            buy_price=buy_data["price"],
-            sell_price=sell_data["median_price"],
-            sold_count=sell_data["sold_count"],
-            category=category
-        )
+        "source": "fresh",
+        "buy_price": buy_price,
+        "sell_price": sell_price,
+        "sold_count": sold_count,
+        "opportunity": opportunity
     }
-    
-
-    
