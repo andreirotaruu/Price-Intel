@@ -1,8 +1,5 @@
 from backend.services.opportunity import get_opportunity_index
-from backend.providers.ebay_scrape_sell_provider import EbayScrapeSellProvider
-from backend.domain.product_query import ProductQuery
-from backend.providers.bestbuy_buy_provider import BestBuyProvider
-from backend.providers.ebay_scrape_buy_provider import EbayPriceProvider
+from backend.schemas.collect_request import CollectRequest
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from backend.db.database import SessionLocal
@@ -49,6 +46,23 @@ def test_insert(db: Session = Depends(get_db)):
     db.refresh(record)
 
     return record
+
+@app.post("/collect")
+def collect(request: AnalyzeRequest, db: Session = Depends(get_db)):
+    listing = models.ObservedListing(
+        name=request.name,
+        category=request.category,
+        marketplace=request.marketplace,
+        observed_price=request.current_price,
+        condition=request.condition
+    )
+
+    db.add(listing)
+    db.commit()
+
+    return {
+        "status": "saved"
+    }
 
 #setting this endpoint to call this function
 @app.post("/analyze")

@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from backend.db.database import Base
 
 class EbayBuyPrice(Base):
@@ -23,3 +23,17 @@ class PriceCache(Base):
     sold_count = Column(Float)
 
     created_at = Column(DateTime, default=datetime.now)
+
+
+class ObservedListing(Base):
+    __tablename__ = "observed_listings"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    name = Column(String, index=True)
+    category = Column(String)
+    marketplace = Column(String)
+
+    observed_price = Column(Float)
+
+    created_at = Column(DateTime, default=datetime.now(UTC))

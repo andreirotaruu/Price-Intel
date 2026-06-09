@@ -39,7 +39,7 @@ async function analyzeProduct() {
   console.log("Price Intel: sending →", productData);
 
   try {
-    const response = await fetch("http://localhost:8000/analyze", {
+    const response = await fetch("http://localhost:8000/collect", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(productData),
