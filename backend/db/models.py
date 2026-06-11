@@ -34,6 +34,8 @@ class ObservedListing(Base):
     category = Column(String)
     marketplace = Column(String)
 
+    condition = Column(String)
+
     observed_price = Column(Float)
 
     created_at = Column(DateTime, default=datetime.now(UTC))
