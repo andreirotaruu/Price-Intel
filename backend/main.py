@@ -1,6 +1,6 @@
 from backend.services.opportunity import get_opportunity_index
 from backend.services.market import get_deal_score
-from backend.schemas.collect_request import CollectRequest
+from backend.schemas.collect_request import CollectRequest, CollectBulkRequest
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from backend.db.database import SessionLocal
@@ -64,6 +64,33 @@ def collect(request: CollectRequest, db: Session = Depends(get_db)):
 
     return {
         "status": "saved"
+    }
+
+@app.post("/collect_bulk")
+def collect_bulk(request: CollectBulkRequest, db: Session = Depends(get_db)):
+    if not request.listings:
+        return {
+            "status": "saved",
+            "inserted": 0
+        }
+
+    records = [
+        models.ObservedListing(
+            name=listing.name,
+            category=listing.category,
+            marketplace=listing.marketplace,
+            condition=listing.condition,
+            observed_price=listing.current_price,
+        )
+        for listing in request.listings
+    ]
+
+    db.add_all(records)
+    db.commit()
+
+    return {
+        "status": "saved",
+        "inserted": len(records)
     }
 
 #setting this endpoint to call this function

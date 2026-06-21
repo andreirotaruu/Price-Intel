@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import List
 
 class CollectRequest(BaseModel):
     name: str
@@ -6,3 +7,7 @@ class CollectRequest(BaseModel):
     marketplace: str
     current_price: float
     condition: str
+
+
+class CollectBulkRequest(BaseModel):
+    listings: List[CollectRequest]

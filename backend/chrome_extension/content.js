@@ -1,3 +1,13 @@
+const url = window.location.href;
+
+if (url.includes("/sch/")) {
+    collectSearchResults();
+}
+else if (url.includes("/itm/")) {
+    analyzeProduct();
+}
+
+
 function extractEbayData() {
   // Title
   const titleEl = document.querySelector("h1.x-item-title__mainTitle span");
@@ -28,6 +38,38 @@ function extractEbayData() {
   };
 }
 
+
+async function collectSearchResults() {
+  const listings = extractSearchListings().map((listing) => ({
+    ...listing,
+    category: "General",
+    condition: "Unknown",
+  }));
+
+  if (!listings.length) {
+    console.log("Price Intel: no listings found on search page");
+    return;
+  }
+
+  console.log("Price Intel: sending bulk →", listings.length, "listings");
+
+  try {
+    const response = await fetch("http://localhost:8000/collect_bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ listings }),
+    });
+
+    const result = await response.json();
+    console.log("Price Intel: bulk result →", result);
+
+    chrome.storage.local.set({ lastBulkAnalysis: result, lastBulkListings: listings });
+  } catch (err) {
+    console.error("Price Intel: bulk upload failed", err);
+    chrome.storage.local.set({ lastBulkAnalysis: null, lastBulkListings: listings });
+  }
+}
+
 async function analyzeProduct() {
   const productData = extractEbayData();
 
@@ -55,5 +97,3 @@ async function analyzeProduct() {
     chrome.storage.local.set({ lastAnalysis: null, lastProduct: productData });
   }
 }
-
-analyzeProduct();
