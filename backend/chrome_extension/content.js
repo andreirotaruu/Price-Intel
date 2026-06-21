@@ -38,6 +38,51 @@ function extractEbayData() {
   };
 }
 
+function extractSearchListings() {
+    const listings = [];
+    const cardSelectors = [".s-card", ".s-item"];
+    const titleSelectors = [
+        ".su-styled-text.primary.default",
+        ".s-card__title",
+        ".s-item__title",
+    ];
+    const priceSelectors = [
+        ".su-styled-text.primary.bold.large-1.s-card__price",
+        ".s-card__price",
+        ".s-item__price",
+    ];
+
+    for (const cardSelector of cardSelectors) {
+        const cards = document.querySelectorAll(cardSelector);
+        if (!cards.length) continue;
+
+        cards.forEach((item) => {
+            const titleEl = titleSelectors
+                .map((selector) => item.querySelector(selector))
+                .find(Boolean);
+            const priceEl = priceSelectors
+                .map((selector) => item.querySelector(selector))
+                .find(Boolean);
+
+            if (!titleEl || !priceEl) return;
+
+            const title = titleEl.innerText.trim();
+            const price = parseFloat(priceEl.innerText.replace(/[^0-9.]/g, ""));
+
+            if (!title || !price) return;
+
+            listings.push({
+                name: title,
+                current_price: price,
+                marketplace: "ebay",
+            });
+        });
+
+        if (listings.length) return listings;
+    }
+
+    return listings;
+}
 
 async function collectSearchResults() {
   const listings = extractSearchListings().map((listing) => ({
@@ -70,7 +115,10 @@ async function collectSearchResults() {
   }
 }
 
+
+
 async function analyzeProduct() {
+
   const productData = extractEbayData();
 
   if (!productData.name || !productData.current_price) {
