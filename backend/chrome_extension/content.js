@@ -1,9 +1,11 @@
 const url = window.location.href;
 
 if (url.includes("/sch/")) {
+    chrome.storage.local.set({ lastPageType: "search" });
     collectSearchResults();
 }
 else if (url.includes("/itm/")) {
+    chrome.storage.local.set({ lastPageType: "item" });
     analyzeProduct();
 }
 
@@ -84,12 +86,48 @@ function extractSearchListings() {
     return listings;
 }
 
+function buildSearchSummary(listings) {
+  if (!listings.length) return null;
+
+  const prices = listings
+    .map((listing) => listing.current_price)
+    .filter((price) => Number.isFinite(price) && price > 0)
+    .sort((left, right) => left - right);
+
+  if (!prices.length) return null;
+
+  const middleIndex = Math.floor(prices.length / 2);
+  const quickMarketEstimate =
+    prices.length % 2 === 0
+      ? (prices[middleIndex - 1] + prices[middleIndex]) / 2
+      : prices[middleIndex];
+
+  const currentPrice = listings[0].current_price;
+  const discountRatio =
+    quickMarketEstimate > 0
+      ? (quickMarketEstimate - currentPrice) / quickMarketEstimate
+      : 0;
+  const confidence = Math.min(listings.length / 20, 1);
+  const dealScore = Math.round(
+    Math.max(0, Math.min(100, 50 + discountRatio * 250 + confidence * 20))
+  );
+
+  return {
+    currentPrice,
+    quickMarketEstimate,
+    dealScore,
+    listingCount: listings.length,
+    productName: listings[0].name,
+  };
+}
+
 async function collectSearchResults() {
   const listings = extractSearchListings().map((listing) => ({
     ...listing,
     category: "General",
     condition: "Unknown",
   }));
+  const summary = buildSearchSummary(listings);
 
   if (!listings.length) {
     console.log("Price Intel: no listings found on search page");
@@ -97,6 +135,7 @@ async function collectSearchResults() {
   }
 
   console.log("Price Intel: sending bulk →", listings.length, "listings");
+  chrome.storage.local.set({ lastBulkSummary: summary, lastBulkListings: listings });
 
   try {
     const response = await fetch("http://localhost:8000/collect_bulk", {
@@ -108,10 +147,10 @@ async function collectSearchResults() {
     const result = await response.json();
     console.log("Price Intel: bulk result →", result);
 
-    chrome.storage.local.set({ lastBulkAnalysis: result, lastBulkListings: listings });
+    chrome.storage.local.set({ lastBulkAnalysis: result, lastBulkListings: listings, lastBulkSummary: summary });
   } catch (err) {
     console.error("Price Intel: bulk upload failed", err);
-    chrome.storage.local.set({ lastBulkAnalysis: null, lastBulkListings: listings });
+    chrome.storage.local.set({ lastBulkAnalysis: null, lastBulkListings: listings, lastBulkSummary: summary });
   }
 }
 
