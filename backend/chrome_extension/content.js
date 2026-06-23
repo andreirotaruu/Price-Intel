@@ -103,13 +103,10 @@ function buildSearchSummary(listings) {
       : prices[middleIndex];
 
   const currentPrice = listings[0].current_price;
-  const discountRatio =
-    quickMarketEstimate > 0
-      ? (quickMarketEstimate - currentPrice) / quickMarketEstimate
-      : 0;
-  const confidence = Math.min(listings.length / 20, 1);
-  const dealScore = Math.round(
-    Math.max(0, Math.min(100, 50 + discountRatio * 250 + confidence * 20))
+  const dealScore = calculateDealScore(
+    currentPrice,
+    quickMarketEstimate,
+    listings.length
   );
 
   return {
@@ -119,6 +116,39 @@ function buildSearchSummary(listings) {
     listingCount: listings.length,
     productName: listings[0].name,
   };
+}
+
+function calculateDealScore(currentPrice, marketEstimate, listingCount = 0) {
+  if (
+    !Number.isFinite(currentPrice) ||
+    !Number.isFinite(marketEstimate) ||
+    currentPrice <= 0 ||
+    marketEstimate <= 0
+  ) {
+    return null;
+  }
+
+  const upsideRatio = (marketEstimate - currentPrice) / marketEstimate;
+  const confidence = Math.min(Math.max(listingCount, 0) / 20, 1);
+  const confidenceWeight = 0.65 + confidence * 0.35;
+  let baseScore;
+
+  if (upsideRatio <= -0.1) {
+    baseScore = 10;
+  } else if (upsideRatio < 0) {
+    baseScore = 25 + (upsideRatio + 0.1) / 0.1 * 20;
+  } else if (upsideRatio < 0.1) {
+    baseScore = 45 + upsideRatio / 0.1 * 20;
+  } else if (upsideRatio < 0.2) {
+    baseScore = 65 + (upsideRatio - 0.1) / 0.1 * 17;
+  } else if (upsideRatio < 0.35) {
+    baseScore = 82 + (upsideRatio - 0.2) / 0.15 * 13;
+  } else {
+    baseScore = 95 + Math.min((upsideRatio - 0.35) / 0.25, 1) * 3;
+  }
+
+  const score = 50 + (baseScore - 50) * confidenceWeight;
+  return Math.round(Math.max(1, Math.min(98, score)));
 }
 
 async function collectSearchResults() {

@@ -24,6 +24,39 @@ function getScoreClass(score) {
   return "bad";
 }
 
+function calculateDealScore(currentPrice, marketEstimate, listingCount = 0) {
+  if (
+    !Number.isFinite(currentPrice) ||
+    !Number.isFinite(marketEstimate) ||
+    currentPrice <= 0 ||
+    marketEstimate <= 0
+  ) {
+    return null;
+  }
+
+  const upsideRatio = (marketEstimate - currentPrice) / marketEstimate;
+  const confidence = Math.min(Math.max(listingCount, 0) / 20, 1);
+  const confidenceWeight = 0.65 + confidence * 0.35;
+  let baseScore;
+
+  if (upsideRatio <= -0.1) {
+    baseScore = 10;
+  } else if (upsideRatio < 0) {
+    baseScore = 25 + ((upsideRatio + 0.1) / 0.1) * 20;
+  } else if (upsideRatio < 0.1) {
+    baseScore = 45 + (upsideRatio / 0.1) * 20;
+  } else if (upsideRatio < 0.2) {
+    baseScore = 65 + ((upsideRatio - 0.1) / 0.1) * 17;
+  } else if (upsideRatio < 0.35) {
+    baseScore = 82 + ((upsideRatio - 0.2) / 0.15) * 13;
+  } else {
+    baseScore = 95 + Math.min((upsideRatio - 0.35) / 0.25, 1) * 3;
+  }
+
+  const score = 50 + (baseScore - 50) * confidenceWeight;
+  return Math.round(Math.max(1, Math.min(98, score)));
+}
+
 function renderEmptyState(title, copy) {
   content.innerHTML = `
     <div class="empty-state">
@@ -67,7 +100,9 @@ function renderPopup(data) {
       : null;
   const condition = product.condition || "Unknown condition";
 
-  const dealScore = summary?.dealScore;
+  const dealScore =
+    calculateDealScore(currentPrice, estimate, summary?.listingCount) ??
+    summary?.dealScore;
   const scoreClass = getScoreClass(dealScore);
   const scoreWidth =
     typeof dealScore === "number" ? Math.max(0, Math.min(100, dealScore)) : 0;
