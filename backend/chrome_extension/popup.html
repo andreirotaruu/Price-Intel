@@ -3,43 +3,276 @@
 <head>
   <meta charset="utf-8">
   <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --subtle: #9ca3af;
+      --line: #e5e7eb;
+      --accent: #2563eb;
+      --accent-soft: #dbeafe;
+      --good: #15803d;
+      --good-soft: #dcfce7;
+      --warn: #b45309;
+      --warn-soft: #fef3c7;
+      --bad: #b91c1c;
+      --bad-soft: #fee2e2;
+      --shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      width: 320px;
-      font-family: -apple-system, sans-serif;
+      width: 360px;
+      min-height: 210px;
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       font-size: 13px;
-      padding: 12px;
       margin: 0;
-      color: #1a1a1a;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 20% 0%, rgba(37, 99, 235, 0.14), transparent 34%),
+        linear-gradient(180deg, #fbfcff 0%, var(--bg) 100%);
     }
-    h2 { margin: 0 0 10px; font-size: 15px; }
-    .product-title {
-      font-weight: 500;
-      margin-bottom: 8px;
-      color: #333;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+
+    .shell {
+      padding: 14px;
     }
-    .stat {
+
+    .header {
       display: flex;
+      align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding: 6px 0;
-      border-bottom: 1px solid #eee;
+      margin-bottom: 12px;
     }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      flex: 0 0 auto;
+      border: 1px solid rgba(37, 99, 235, 0.18);
+      border-radius: 8px;
+      color: var(--accent);
+      background: linear-gradient(135deg, #eff6ff, #ffffff);
+      box-shadow: 0 8px 18px rgba(37, 99, 235, 0.12);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .eyebrow {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      height: 24px;
+      padding: 0 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.74);
+      font-size: 11px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .panel {
+      overflow: hidden;
+      border: 1px solid rgba(229, 231, 235, 0.9);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: var(--shadow);
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      padding: 13px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .product-title {
+      display: -webkit-box;
+      overflow: hidden;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.3;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    .product-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .score {
+      display: grid;
+      width: 58px;
+      height: 58px;
+      place-items: center;
+      align-self: start;
+      border-radius: 8px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .score.good {
+      background: var(--good-soft);
+      color: var(--good);
+    }
+
+    .score.bad {
+      background: var(--bad-soft);
+      color: var(--bad);
+    }
+
+    .score.neutral {
+      background: var(--warn-soft);
+      color: var(--warn);
+    }
+
+    .stats {
+      padding: 4px 13px 10px;
+    }
+
+    .stat {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 40px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
     .stat:last-child { border-bottom: none; }
-    .label { color: #666; flex: 1; }
-    .value { font-weight: 500; }
-    .value.good { color: #16a34a; }
-    .value.bad  { color: #dc2626; }
-    .value.neutral { color: #888; }
-    #status { color: #888; font-style: italic; margin-top: 8px; }
+
+    .label {
+      min-width: 0;
+      color: var(--muted);
+      flex: 1;
+      font-weight: 520;
+    }
+
+    .value {
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 760;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .value.good { color: var(--good); }
+    .value.bad  { color: var(--bad); }
+    .value.neutral { color: var(--warn); }
+
+    .meter {
+      height: 7px;
+      margin: 0 13px 13px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e5e7eb;
+    }
+
+    .meter-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--bad), var(--warn), var(--good));
+    }
+
+    .empty-state {
+      padding: 22px 18px;
+      text-align: center;
+    }
+
+    .empty-icon {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      margin: 0 auto 11px;
+      place-items: center;
+      border-radius: 8px;
+      color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .empty-title {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 760;
+    }
+
+    .empty-copy {
+      margin: 6px auto 0;
+      max-width: 240px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
   </style>
 </head>
 <body>
-  <h2>Price Intel</h2>
-  <div id="content">
-    <div id="status">Loading...</div>
+  <div class="shell">
+    <header class="header">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M4 19V5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M4 19H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M8 15L11 11L14 13L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <h1>Price Intel</h1>
+          <div class="eyebrow">Resale snapshot</div>
+        </div>
+      </div>
+      <div class="badge">eBay</div>
+    </header>
+
+    <main id="content" class="panel">
+      <div class="empty-state">
+        <div class="empty-icon" aria-hidden="true">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+            <path d="M21 21L16.7 16.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+          </svg>
+        </div>
+        <p class="empty-title">Loading price signal</p>
+        <p class="empty-copy">Checking the latest listing captured from this browser.</p>
+      </div>
+    </main>
   </div>
   <script src="popup.js"></script>
 </body>
