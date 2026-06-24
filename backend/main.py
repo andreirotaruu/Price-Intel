@@ -8,6 +8,7 @@ from backend.db import models
 from backend.db.database import engine
 from backend.schemas.analyze_request import AnalyzeRequest
 from fastapi.middleware.cors import CORSMiddleware
+from numpy import average, median
 
 #create models
 models.Base.metadata.create_all(bind=engine)
@@ -101,7 +102,7 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
     category = request.category
 
     listings = db.query(models.ObservedListing).filter(
-        models.ObservedListing.name == name
+        models.ObservedListing.name.lower().ilike(f"%{name.lower()}%")
     )
 
     if not listings:
@@ -112,18 +113,20 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
     prices = [l.price for l in listings]
 
     #make this the 10th percentile in the future
-    buy_price = min(prices)
+    min_price = min(prices)
     #make this the 90th percentile in the future
-    sell_price = max(prices)
+    max_price = max(prices)
     sold_count = len(prices)
-
-    deal_score = get_deal_score(buy_price, sell_price, sold_count)
+    average_price = average(prices)
+    median_price = median(prices)
+    
     #store in DB
+    #to-do change db column names for min and max price
     cache_entry = models.PriceCache(
         name=name,
         category=category,
-        buy_price=buy_price,
-        sell_price=sell_price,
+        buy_price=min_price,
+        sell_price=max_price,
         sold_count=sold_count
     )
 
@@ -132,8 +135,7 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
 
     return {
         "source": "fresh",
-        "buy_price": buy_price,
-        "sell_price": sell_price,
+        "min_price": min_price,
+        "max_price": max_price,
         "sold_count": sold_count,
-        "deal_score": deal_score
     }
