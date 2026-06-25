@@ -94,6 +94,30 @@ def collect_bulk(request: CollectBulkRequest, db: Session = Depends(get_db)):
         "inserted": len(records)
     }
 
+def normalize_name(name: str) -> str:
+    import re
+
+    name = name.lower()
+
+    name = re.sub(r'[^a-z0-9\s]', '', name)
+
+    stop_words = {
+        "excellent",
+        "condition",
+        "used",
+        "new",
+        "tested",
+        "working"
+    }
+
+    words = [
+        word
+        for word in name.split()
+        if word not in stop_words
+    ]
+
+    return " ".join(words)
+
 #setting this endpoint to call this function
 @app.post("/analyze")
 def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
@@ -102,7 +126,7 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
     category = request.category
 
     listings = db.query(models.ObservedListing).filter(
-        models.ObservedListing.name.lower().ilike(f"%{name.lower()}%")
+        models.ObservedListing.name.lower().ilike(f"%{normalize_name(name)}%")
     )
 
     if not listings:
