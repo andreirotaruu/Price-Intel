@@ -1,5 +1,6 @@
 from backend.services.opportunity import get_opportunity_index
 from backend.services.market import get_deal_score
+from backend.providers.ebay_api import EbayAPIProvider
 from backend.schemas.collect_request import CollectRequest, CollectBulkRequest
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
@@ -22,6 +23,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+def main():
+    EbayAPIProvider = EbayAPIProvider()
+
+    response = EbayAPIProvider.search("RTX 4070")
+    print(response)
+
 
 def get_db():
 
@@ -163,3 +171,6 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
         "max_price": max_price,
         "sold_count": sold_count,
     }
+
+if __name__ == "__main__":
+    main()
