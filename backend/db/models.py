@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime
 from datetime import datetime, timezone, UTC
-from backend.db.database import Base
+from db.database import Base
 
 class EbayBuyPrice(Base):
     __tablename__ = "ebay_buy_prices"

@@ -1,13 +1,13 @@
-from backend.services.opportunity import get_opportunity_index
-from backend.services.market import get_deal_score
-from backend.providers.ebay_api import EbayAPIProvider
-from backend.schemas.collect_request import CollectRequest, CollectBulkRequest
+from services.opportunity import get_opportunity_index
+from services.market import get_deal_score
+from providers.ebay_api import EbayAPIProvider
+from schemas.collect_request import CollectRequest, CollectBulkRequest
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
-from backend.db.database import SessionLocal
-from backend.db import models
-from backend.db.database import engine
-from backend.schemas.analyze_request import AnalyzeRequest
+from db.database import SessionLocal
+from db import models
+from db.database import engine
+from schemas.analyze_request import AnalyzeRequest
 from fastapi.middleware.cors import CORSMiddleware
 from numpy import average, median
 
@@ -25,9 +25,9 @@ app.add_middleware(
 )
 
 def main():
-    EbayAPIProvider = EbayAPIProvider()
+    provider = EbayAPIProvider()
 
-    response = EbayAPIProvider.search("RTX 4070")
+    response = provider.search("RTX 4070")
     print(response)
 
 
