@@ -138,9 +138,31 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
     )
 
     if not listings:
-        return {
-            "error": "Not enough data"
-        }
+        
+        api_provider = EbayAPIProvider()
+        response = api_provider.search(name)
+
+        items = response["itemSummaries"]
+        listings = []
+        for item in items:
+            listings.append({
+                "title": item["title"],
+                "price": float(item["price"]['value']),
+                "condition": item.get("condition")
+                "shipping": float(
+                    item.get("shippingOptions", [{}])[0]
+                        .get("shippingCost", {})
+                        .get("value", 0)
+                ),
+                "seller_feedback": float(
+                    item.get("seller", {})
+                        .get("feedbackPercentage", 0)
+                ),
+                "seller_score": item.get("seller", {})
+                                .get("feedbackScore", 0),
+                "item_id": item["itemId"]
+            })
+        
 
     prices = [l.price for l in listings]
 
