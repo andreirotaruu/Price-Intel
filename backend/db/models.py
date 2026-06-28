@@ -28,11 +28,12 @@ class ObservedListing(Base):
     created_at = Column(DateTime, default=datetime.now(UTC))
 
 
-class market_snapshot(Base):
+class MarketSnapshot(Base):
     name = Column(String, index=True)
 
     average = Column(Float)
     median = Column(Float)
-    lowest = Column(Float)
+    lowest_price = Column(Float)
+    highest_price = Column(Float)
     count = Column(Integer)
     last_updated = Column(DateTime)

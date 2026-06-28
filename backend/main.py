@@ -6,10 +6,13 @@ from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from db.database import SessionLocal
 from db import models
+from db.models import MarketSnapshot
 from db.database import engine
 from schemas.analyze_request import AnalyzeRequest
 from fastapi.middleware.cors import CORSMiddleware
 import statistics
+import datetime
+from datetime import timedelta, timezone
 
 #create models
 models.Base.metadata.create_all(bind=engine)
@@ -130,10 +133,34 @@ def normalize_name(name: str) -> str:
 @app.post("/analyze")
 def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
 
+
     name = request.name
+    normalized_name = normalize_name(name)
     category = request.category
+
     ebay = EbayAPIProvider()
     response = ebay.search(name)
+
+    snapshot = (db.query(MarketSnapshot)
+                .filter(
+                    MarketSnapshot.name == normalized_name
+                )
+                .first()
+            )
+    
+    if snapshot:
+        age = datetime.now(timezone.utc) - snapshot.last_updated
+
+        if age < timedelta(hours=1):
+            return {
+                "average_price": snapshot.average,
+                "median_price": snapshot.median,
+                "lowest_price": snapshot.lowest_price,
+                "highest_price": snapshot.highest_price,
+                "listing_count": snapshot.count,
+                "cached": True
+        }
+
 
     items = response["itemSummaries"]
 
