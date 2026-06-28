@@ -132,37 +132,32 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
 
     name = request.name
     category = request.category
+    ebay = EbayAPIProvider()
+    response = ebay.search(name)
 
-    listings = db.query(models.ObservedListing).filter(
-        models.ObservedListing.name.lower().ilike(f"%{normalize_name(name)}%")
-    )
+    items = response["itemSummaries"]
 
-    if not listings:
-        
-        api_provider = EbayAPIProvider()
-        response = api_provider.search(name)
+    listings = []
 
-        items = response["itemSummaries"]
-        listings = []
-        for item in items:
-            listings.append({
-                "title": item["title"],
-                "price": float(item["price"]['value']),
-                "condition": item.get("condition")
-                "shipping": float(
-                    item.get("shippingOptions", [{}])[0]
-                        .get("shippingCost", {})
-                        .get("value", 0)
-                ),
-                "seller_feedback": float(
-                    item.get("seller", {})
-                        .get("feedbackPercentage", 0)
-                ),
-                "seller_score": item.get("seller", {})
-                                .get("feedbackScore", 0),
-                "item_id": item["itemId"]
-            })
-        
+    for item in items:
+        listings.append({
+            "title": item["title"],
+            "price": float(item["price"]["value"]),
+            "condition": item.get("condition"),
+            "shipping": float(
+                item.get("shippingOptions", [{}])[0]
+                    .get("shippingCost", {})
+                    .get("value", 0)
+            ),
+            "seller_feedback": float(
+                item.get("seller", {})
+                    .get("feedbackPercentage", 0)
+            ),
+            "seller_score": item.get("seller", {})
+                            .get("feedbackScore", 0),
+            "item_id": item["itemId"]
+        })
+                
 
     prices = [l.price for l in listings]
 
