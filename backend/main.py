@@ -9,7 +9,7 @@ from db import models
 from db.database import engine
 from schemas.analyze_request import AnalyzeRequest
 from fastapi.middleware.cors import CORSMiddleware
-from numpy import average, median
+import statistics
 
 #create models
 models.Base.metadata.create_all(bind=engine)
@@ -138,7 +138,7 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
     items = response["itemSummaries"]
 
     listings = []
-
+    
     for item in items:
         listings.append({
             "title": item["title"],
@@ -158,36 +158,28 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
             "item_id": item["itemId"]
         })
                 
+    #compare price + shipping
+    prices = [l["price"] + l["shipping"] for l in listings]
 
-    prices = [l.price for l in listings]
 
-    #make this the 10th percentile in the future
-    min_price = min(prices)
-    #make this the 90th percentile in the future
-    max_price = max(prices)
-    sold_count = len(prices)
-    average_price = average(prices)
-    median_price = median(prices)
+    average_price = statistics.mean(prices)
+    median_price = statistics.median(prices)
+    lowest_price = min(prices)
+    highest_price = max(prices)
+    listing_count = len(prices)
     
     #store in DB
     #to-do change db column names for min and max price
-    cache_entry = models.PriceCache(
-        name=name,
-        category=category,
-        buy_price=min_price,
-        sell_price=max_price,
-        sold_count=sold_count
-    )
 
-    db.add(cache_entry)
-    db.commit()
 
     return {
-        "source": "fresh",
-        "min_price": min_price,
-        "max_price": max_price,
-        "sold_count": sold_count,
-    }
+        "average_price": average_price,
+        "median_price": median_price,
+        "lowest_price": lowest_price,
+        "highest_price": highest_price,
+        "listing_count": listing_count,
+        "comparables": listings
+    } 
 
 if __name__ == "__main__":
     main()

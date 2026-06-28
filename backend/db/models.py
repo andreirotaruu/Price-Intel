@@ -12,19 +12,6 @@ class EbayBuyPrice(Base):
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
 
 
-class PriceCache(Base):
-    __tablename__ = "price_cache"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    category = Column(String, index=True)
-    buy_price = Column(Float)
-    sell_price = Column(Float)
-    sold_count = Column(Float)
-
-    created_at = Column(DateTime, default=datetime.now)
-
-
 class ObservedListing(Base):
     __tablename__ = "observed_listings"
 
@@ -39,3 +26,13 @@ class ObservedListing(Base):
     observed_price = Column(Float)
 
     created_at = Column(DateTime, default=datetime.now(UTC))
+
+
+class market_snapshot(Base):
+    name = Column(String, index=True)
+
+    average = Column(Float)
+    median = Column(Float)
+    lowest = Column(Float)
+    count = Column(Integer)
+    last_updated = Column(DateTime)
