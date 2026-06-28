@@ -138,9 +138,6 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
     normalized_name = normalize_name(name)
     category = request.category
 
-    ebay = EbayAPIProvider()
-    response = ebay.search(name)
-
     snapshot = (db.query(MarketSnapshot)
                 .filter(
                     MarketSnapshot.name == normalized_name
@@ -161,6 +158,8 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
                 "cached": True
         }
 
+    ebay = EbayAPIProvider()
+    response = ebay.search(name)
 
     items = response["itemSummaries"]
 
@@ -194,6 +193,19 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
     lowest_price = min(prices)
     highest_price = max(prices)
     listing_count = len(prices)
+
+    snapshot = MarketSnapshot(
+        name=normalized_name,
+        average=average_price,
+        median=median_price,
+        lowest_price=lowest_price,
+        highest_price=highest_price,
+        count=listing_count,
+        last_updated=datetime.now(timezone.utc)
+    )
+
+    db.add(MarketSnapshot)
+    db.commit()
     
     #store in DB
     #to-do change db column names for min and max price
