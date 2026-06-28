@@ -14,6 +14,7 @@ import statistics
 import datetime
 from datetime import timedelta, timezone
 
+
 #create models
 models.Base.metadata.create_all(bind=engine)
 #initialize fastAPI
@@ -183,7 +184,11 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
                             .get("feedbackScore", 0),
             "item_id": item["itemId"]
         })
-                
+    
+
+    #to-do change to HTTP exception
+    if not listings:
+        print("No listings found")
     #compare price + shipping
     prices = [l["price"] + l["shipping"] for l in listings]
 
