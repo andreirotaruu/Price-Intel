@@ -17,6 +17,12 @@ const formatCurrency = (value) =>
       }).format(value)
     : "—";
 
+const formatNumber = (value) =>
+  typeof value === "number" ? new Intl.NumberFormat("en-US").format(value) : "—";
+
+const formatPercent = (value) =>
+  typeof value === "number" ? `${Math.abs(value).toFixed(1)}%` : "—";
+
 function getScoreClass(score) {
   if (typeof score !== "number") return "neutral";
   if (score >= 80) return "good";
@@ -90,18 +96,31 @@ function renderPopup(data) {
   }
 
   const product = data.lastProduct;
+  const analysis = data.lastAnalysis;
   const summary = data.lastBulkSummary;
   const title = product.name || product.title || "Unknown";
-  const currentPrice = product.current_price ?? product.price;
-  const estimate = summary?.quickMarketEstimate;
+  const currentPrice = analysis?.current_price ?? product.current_price ?? product.price;
+  const average = analysis?.average_price;
+  const median = analysis?.median_price ?? summary?.quickMarketEstimate;
+  const estimate = average ?? median;
   const difference =
-    typeof estimate === "number" && typeof currentPrice === "number"
+    typeof analysis?.price_delta === "number"
+      ? analysis.price_delta
+      : typeof estimate === "number" && typeof currentPrice === "number"
       ? estimate - currentPrice
       : null;
+  const percentDelta =
+    typeof analysis?.percent_delta === "number"
+      ? analysis.percent_delta
+      : typeof difference === "number" && typeof estimate === "number" && estimate > 0
+      ? (difference / estimate) * 100
+      : null;
+  const comparableCount = analysis?.comparable_count ?? analysis?.listing_count ?? summary?.listingCount;
   const condition = product.condition || "Unknown condition";
 
   const dealScore =
-    calculateDealScore(currentPrice, estimate, summary?.listingCount) ??
+    analysis?.deal_score ??
+    calculateDealScore(currentPrice, estimate, comparableCount) ??
     summary?.dealScore;
   const scoreClass = getScoreClass(dealScore);
   const scoreWidth =
@@ -112,6 +131,24 @@ function renderPopup(data) {
         ? "good"
         : "bad"
       : "";
+  const deltaCopy =
+    typeof difference === "number"
+      ? `${formatCurrency(difference)} (${formatPercent(percentDelta)})`
+      : "—";
+  const rangeCopy =
+    typeof analysis?.lowest_price === "number" && typeof analysis?.highest_price === "number"
+      ? `${formatCurrency(analysis.lowest_price)} - ${formatCurrency(analysis.highest_price)}`
+      : "—";
+  const insights = Array.isArray(analysis?.insights) ? analysis.insights : [];
+  const insightHtml = insights.length
+    ? `
+      <div class="insights">
+        ${insights
+          .map((insight) => `<p>${escapeHtml(insight)}</p>`)
+          .join("")}
+      </div>
+    `
+    : "";
 
   const html = `
     <section class="summary">
@@ -131,14 +168,31 @@ function renderPopup(data) {
         <span class="value">${formatCurrency(currentPrice)}</span>
       </div>
       <div class="stat">
-        <span class="label">Market estimate</span>
-        <span class="value">${formatCurrency(estimate)}</span>
+        <span class="label">Market average</span>
+        <span class="value">${formatCurrency(average)}</span>
       </div>
       <div class="stat">
-        <span class="label">Upside</span>
-        <span class="value ${differenceClass}">${formatCurrency(difference)}</span>
+        <span class="label">Median price</span>
+        <span class="value">${formatCurrency(median)}</span>
+      </div>
+      <div class="stat">
+        <span class="label">Vs. average</span>
+        <span class="value ${differenceClass}">${deltaCopy}</span>
+      </div>
+      <div class="stat">
+        <span class="label">Comparable range</span>
+        <span class="value">${rangeCopy}</span>
+      </div>
+      <div class="stat">
+        <span class="label">Comparables</span>
+        <span class="value">${formatNumber(comparableCount)}</span>
+      </div>
+      <div class="stat">
+        <span class="label">Snapshot</span>
+        <span class="value">${analysis ? (analysis.cached ? "Cached" : "Fresh") : "Pending"}</span>
       </div>
     </div>
+    ${insightHtml}
     <div class="meter" aria-hidden="true">
       <div class="meter-fill" style="width: ${scoreWidth}%"></div>
     </div>

@@ -196,18 +196,28 @@ async function analyzeProduct() {
   }
 
   console.log("Price Intel: sending →", productData);
+  chrome.storage.local.set({ lastAnalysis: null, lastProduct: productData });
 
   try {
-    const response = await fetch("http://localhost:8000/collect", {
+    const collectResponse = await fetch("http://localhost:8000/collect", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(productData),
     });
 
-    const result = await response.json();
-    console.log("Price Intel: result →", result);
+    const collectResult = await collectResponse.json();
+    console.log("Price Intel: collect result →", collectResult);
 
-    chrome.storage.local.set({ lastAnalysis: result, lastProduct: productData });
+    const analyzeResponse = await fetch("http://localhost:8000/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(productData),
+    });
+
+    const analysis = await analyzeResponse.json();
+    console.log("Price Intel: analysis result →", analysis);
+
+    chrome.storage.local.set({ lastAnalysis: analysis, lastProduct: productData });
 
   } catch (err) {
     console.error("Price Intel: backend unreachable", err);

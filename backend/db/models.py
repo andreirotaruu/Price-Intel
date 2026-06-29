@@ -9,7 +9,7 @@ class EbayBuyPrice(Base):
     product_name = Column(String, index=True)
     price = Column(Float)
     source = Column(String, default="ebay")
-    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class ObservedListing(Base):
@@ -25,10 +25,13 @@ class ObservedListing(Base):
 
     observed_price = Column(Float)
 
-    created_at = Column(DateTime, default=datetime.now(UTC))
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
 
 class MarketSnapshot(Base):
+    __tablename__ = "market_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
 
     average = Column(Float)
