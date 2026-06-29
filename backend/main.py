@@ -1,14 +1,14 @@
-from services.opportunity import get_opportunity_index
-from services.market import get_deal_score
-from providers.ebay_api import EbayAPIProvider
-from schemas.collect_request import CollectRequest, CollectBulkRequest
+from backend.services.opportunity import get_opportunity_index
+from backend.services.market import get_deal_score
+from backend.providers.ebay_api import EbayAPIProvider
+from backend.schemas.collect_request import CollectRequest, CollectBulkRequest
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
-from db.database import SessionLocal
-from db import models
-from db.models import MarketSnapshot
-from db.database import engine
-from schemas.analyze_request import AnalyzeRequest
+from backend.db.database import SessionLocal
+from backend.db import models
+from backend.db.models import MarketSnapshot
+from backend.db.database import engine
+from backend.schemas.analyze_request import AnalyzeRequest
 from fastapi.middleware.cors import CORSMiddleware
 import statistics
 import datetime
