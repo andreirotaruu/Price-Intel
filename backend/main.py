@@ -11,9 +11,8 @@ from backend.db.database import engine
 from backend.schemas.analyze_request import AnalyzeRequest
 from fastapi.middleware.cors import CORSMiddleware
 import statistics
-import datetime
 import re
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 
 #create models
