@@ -188,8 +188,8 @@ function renderPopup(data) {
         <span class="value">${formatNumber(comparableCount)}</span>
       </div>
       <div class="stat">
-        <span class="label">Snapshot</span>
-        <span class="value">${analysis ? (analysis.cached ? "Cached" : "Fresh") : "Pending"}</span>
+        <span class="label">Updated</span>
+        <span class="value">${analysis ? (analysis.cached ? "Cached" : "Just Now") : "Pending"}</span>
       </div>
     </div>
     ${insightHtml}

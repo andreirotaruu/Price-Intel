@@ -1,119 +1,151 @@
-#### Resell Price Intel Engine
+# Price Intel
 
-This is a price intel engine that will gather data for popular items that are resold and give valuable insights on reselling opportunity for the specific product
+Price Intel is a Chrome extension plus FastAPI backend that analyzes marketplace listings in real time. It started as a scraping engine, but the current project is an extension-driven workflow: when you open an eBay search page or item page, the extension captures listing data, sends it to the backend, and shows a compact resale snapshot in the popup.
 
-## Question we will answer
+## What It Does
 
-"If I buy this item today, is it likely to flip for a profit soon?"
+The current flow answers a simple question:
 
-### V1 focus 
+If I am looking at this listing right now, how does it compare to the market?
 
-## Products Covered
+For item pages, Price Intel:
 
-1. GPUs
-2. Gaming Consoles
+1. Reads the listing title, price, condition, and category from the page.
+2. Saves the observed listing to the backend.
+3. Calls `/analyze` to get a market snapshot.
+4. Shows the result in the popup with deal score, average, median, comparable count, range, and short insights.
 
-## Data Sources
+For search pages, Price Intel:
 
-1. Buy Side: Best Buy scraping
+1. Extracts multiple visible listings from the results page.
+2. Sends them to `/collect_bulk`.
+3. Stores a lightweight summary for the popup and history.
 
-2. Sell Side: Ebay sold listings scraping
+## Current Features
 
-## V1 Data contract
+- Chrome extension content script for eBay item and search pages
+- Popup UI that renders the latest captured product and analysis
+- Backend `/collect`, `/collect_bulk`, and `/analyze` endpoints
+- Cached market snapshots in the database
+- Product normalization so title variations map to the same snapshot
+- Simple insight generation from the market statistics
 
-# Input:
+## Architecture
 
-1. Product identifier (name or UPC)
-2. Category
+### Extension
 
-# Output:
+- `backend/chrome_extension/content.js`
+  - Detects eBay search pages and item pages
+  - Extracts listing data from the DOM
+  - Posts listings to the backend
+  - Stores the latest analysis in Chrome local storage
 
-{
-  "buy_price": 519.99,
-  "sell_price": 649.99,
-  "fees": 92.00,
-  "estimated_profit": 38.00,
-  "roi_percent": 7.3,
-  "velocity": "FAST",
-  "recommendation": "BUY"
-}
+- `backend/chrome_extension/popup.js`
+  - Reads the latest stored data
+  - Renders deal score and market metrics
+  - Falls back to a lighter summary when analysis is not available yet
 
-Velocity is determined by the number of sold listings within the last 7–14 days.
+- `backend/chrome_extension/popup.html`
+  - Popup layout and styles
 
-## Data Needed:
+- `backend/chrome_extension/manifest.json`
+  - Chrome extension manifest and host permissions
 
-1. Retail price
+### Backend
 
-2. eBay median sold price
+- `backend/main.py`
+  - FastAPI app
+  - `/collect` saves one observed listing
+  - `/collect_bulk` saves search result listings
+  - `/analyze` normalizes the product name, checks the cache, queries comparables, computes metrics, and returns the analysis payload
 
-3. eBay sold count (7–14 days)
+- `backend/db/models.py`
+  - ORM models for observed listings and market snapshots
 
-4. Estimated fees
+- `backend/schemas/`
+  - Request payload definitions for the endpoints
 
+- `backend/providers/`
+  - eBay and Best Buy provider logic
 
-## Tech Stack
+- `backend/services/`
+  - Scoring and opportunity helpers
 
-# Backend:
+## How The Analysis Flow Works
 
-1. Python
+1. The extension extracts a listing from eBay.
+2. It sends the listing to `/collect` so the observation is stored.
+3. It sends the same listing to `/analyze`.
+4. The backend normalizes the product name so similar titles share the same cache key.
+5. If there is a fresh market snapshot, the backend returns it immediately.
+6. If not, the backend queries eBay comparables, calculates market stats, saves a new snapshot, and returns the result.
+7. The popup reads the saved response from `chrome.storage.local` and renders the result.
 
-2. FastAPI
-- Dynamically updating the react frontend and posting to the database by creating REST APIs
-- Fast because of async support and high-throughput handling 
-- Validates JSON, Rejects bad requests, and generates error responses 
+## Analysis Output
 
-3. PostgreSQL
-- Caching results of scraping from Ebay buy and sell side services 
+The `/analyze` response now includes:
 
-# Frontend
+- `average_price`
+- `median_price`
+- `lowest_price`
+- `highest_price`
+- `listing_count`
+- `comparable_count`
+- `deal_score`
+- `price_delta`
+- `percent_delta`
+- `cached`
+- `normalized_name`
+- `insights`
+- `comparables`
 
-1. React (states updated by FastAPI backend)
-- Reusing components, updating states, mobile friendliness
-- User action causes react frontend to trigger FastAPI endpoint using fetch that runs backend logic like updating database and JSON response.
-- FastAPI returns JSON and react re-renders component
+Example insight strings:
 
-# Data access:
+- `This listing is 5.8% below the market average.`
+- `Based on 38 comparable listings, this appears to be a fair deal.`
+- `Prices for this product are tightly clustered, increasing confidence in the estimate.`
 
-1. Ebay Scraping
+## Product Normalization
 
-V1 products are identified by UPC when available.
+The backend uses normalization so titles like these land on the same cache key:
 
-## Opportunity Logic
+- `RTX 4070 FE 12GB`
+- `NVIDIA GeForce RTX 4070 Founders Edition`
 
-Opportunity is calculated using:
-- Estimated resale fees (category-based)
-- Net profit
-- ROI threshold
-- Recent sales velocity (7–14 days)
+Both normalize to:
 
-Recommendations are conservative by design to avoid false positives.
+```text
+rtx 4070 founders edition
+```
 
-## Opportunity Scoring
+That keeps the cached snapshot stable even when sellers phrase the product differently.
 
-Opportunity scores are computed using a weighted heuristic combining:
-- ROI (capital efficiency)
-- Recent sales velocity (liquidity)
-- Estimated profit (absolute return)
+## Local Development
 
-Weights are chosen to normalize these signals onto a comparable scale and reflect typical reseller decision-making priorities.
+### Backend
 
-## Out of Scope for v1:
+Run the API with:
 
-1. Price forecasting
+```bash
+uvicorn backend.main:app --reload
+```
 
-2. Multiple buy-side retailers
+The backend expects a database URL in the environment and creates tables on startup.
 
-3. User accounts
+### Extension
 
-4. Inventory management
+Load `backend/chrome_extension/` as an unpacked extension in Chrome.
 
-### To Add in V2
+The extension expects the backend to be running locally on port `8000`.
 
-- Need to get access to APIs for seamless and more accurate data
+## Project Status
 
-## Data access
+The project is no longer just a scraper. It is now a browser extension that captures live listings, asks the backend for market analysis, and shows the result in the popup.
 
-# Need to get approved for
-1. Best Buy API
-2. EBay API
-3. Alibaba API
+The original scraping and provider logic still matters, but it now supports the extension experience instead of being the whole product.
+
+## Notes
+
+- The popup currently focuses on eBay listings.
+- The backend keeps cached market snapshots so repeat lookups are cheaper and faster.
+- The insight generation is intentionally simple and deterministic for now.
