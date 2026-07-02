@@ -15,17 +15,33 @@ class EbayBuyPrice(Base):
 class ObservedListing(Base):
     __tablename__ = "observed_listings"
 
-    id = Column(Integer, primary_key=True, index=True)
+    __tablename__ = "observed_listings"
 
-    name = Column(String, index=True)
+    id = Column(Integer, primary_key=True)
+
+    normalized_name = Column(String, index=True)
+
+    title = Column(String)
+
     category = Column(String)
+
     marketplace = Column(String)
+
+    item_id = Column(String)
 
     condition = Column(String)
 
     observed_price = Column(Float)
 
-    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    shipping = Column(Float)
+
+    seller_feedback = Column(Float)
+
+    seller_score = Column(Integer)
+
+    source = Column(String)      
+
+    created_at = Column(DateTime)
 
 
 class MarketSnapshot(Base):
