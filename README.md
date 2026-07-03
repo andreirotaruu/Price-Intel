@@ -144,6 +144,10 @@ The project is no longer just a scraper. It is now a browser extension that capt
 
 The original scraping and provider logic still matters, but it now supports the extension experience instead of being the whole product.
 
+## Future Additions 
+- Machine Learning normalization and analytics 
+- React UI
+
 ## Notes
 
 - The popup currently focuses on eBay listings.
