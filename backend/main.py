@@ -376,9 +376,12 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
             listing_count=0,
             cached=False,
         )
+    
+    normalized_target = normalized_name(request.name)
+    comparables = []
     #compare price + shipping
     prices = [l["price"] + l["shipping"] for l in listings]
-
+    comparables = [l["price"] + l["shipping"] for l in listings if l["title"] == normalized_target]
 
     average_price = statistics.mean(prices)
     median_price = statistics.median(prices)
