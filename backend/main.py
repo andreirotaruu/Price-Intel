@@ -324,6 +324,10 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
             ),
             "seller_score": item.get("seller", {})
                             .get("feedbackScore", 0),
+            "seller_username": item.get("seller", {})
+                            .get("username", ""), 
+            "seller_type": item.get("seller", {})
+                            .get("sellerAccountType", ""),
             "item_id": item["itemId"]
         })
     
