@@ -342,6 +342,7 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
     for item in items:
         listings.append({
             "title": item["title"],
+            "normalized_name": normalize_name(item["title"]),
             "price": float(item["price"]["value"]),
             "condition": item.get("condition"),
             "shipping": float(
@@ -377,11 +378,20 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
             cached=False,
         )
     
-    normalized_target = normalized_name(request.name)
+    normalized_target = normalize_name(request.name)
+
     comparables = []
-    #compare price + shipping
-    prices = [l["price"] + l["shipping"] for l in listings]
-    comparables = [l["price"] + l["shipping"] for l in listings if l["title"] == normalized_target]
+
+    for listing in listings:
+        normalized_listing = normalize_name(listing["title"])
+
+        if normalized_listing == normalized_target:
+            comparables.append(listing)
+
+    prices = [
+        listing["price"] + listing["shipping"]
+        for listing in comparables
+    ]
 
     average_price = statistics.mean(prices)
     median_price = statistics.median(prices)
