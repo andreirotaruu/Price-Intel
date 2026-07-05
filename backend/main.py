@@ -156,7 +156,20 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
             "item_id": item["itemId"]
         })
     
+    records = [
+        models.ObservedListing(
+            normalized_name=l.name,
+            category=l.category,
+            marketplace=l.marketplace,
+            condition=l.condition,
+            observed_price=l.current_price,
+        )
+        for l in listings
+    ]
 
+    db.add_all(records)
+    db.commit()
+    
     #to-do change to HTTP exception
     if not listings:
         print("No listings found")
