@@ -48,7 +48,7 @@ def get_db():
 def collect(request: CollectRequest, db: Session = Depends(get_db)):
     
     listing = models.ObservedListing(
-        name=request.name,
+        normalized_name=request.name,
         category=request.category,
         marketplace=request.marketplace,
         condition=request.condition,
@@ -72,7 +72,7 @@ def collect_bulk(request: CollectBulkRequest, db: Session = Depends(get_db)):
 
     records = [
         models.ObservedListing(
-            name=listing.name,
+            normalized_name=listing.name,
             category=listing.category,
             marketplace=listing.marketplace,
             condition=listing.condition,
@@ -160,6 +160,7 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
     #to-do change to HTTP exception
     if not listings:
         print("No listings found")
+        print(response)
         return build_analysis_response(
             request=request,
             normalized_name=normalized_name,

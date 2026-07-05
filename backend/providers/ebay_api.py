@@ -8,7 +8,6 @@ class EbayAPIProvider:
 
         load_dotenv()
         token = os.getenv("EBAY_API_TOKEN")
-        
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
