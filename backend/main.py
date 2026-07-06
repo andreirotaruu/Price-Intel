@@ -158,13 +158,13 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
     
     records = [
         models.ObservedListing(
-            normalized_name=l.name,
-            category=l.category,
-            marketplace=l.marketplace,
-            condition=l.condition,
-            observed_price=l.current_price,
+            normalized_name=listing["normalized_name"],
+            category=listing.get("category", category),
+            marketplace=listing.get("marketplace", "ebay"),
+            condition=listing.get("condition", "Unknown"),
+            observed_price=listing["price"] + listing["shipping"],
         )
-        for l in listings
+        for listing in listings
     ]
 
     db.add_all(records)
