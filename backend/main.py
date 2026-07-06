@@ -1,5 +1,9 @@
 from backend.services.market import build_analysis_response
-from backend.services.normalize import normalize_name
+from backend.services.normalize import (
+    build_product_profile,
+    normalize_name,
+    products_are_comparable,
+)
 from backend.providers.ebay_api import EbayAPIProvider
 from backend.schemas.collect_request import CollectRequest, CollectBulkRequest
 from fastapi import FastAPI, Depends
@@ -46,9 +50,10 @@ def get_db():
 
 @app.post("/collect")
 def collect(request: CollectRequest, db: Session = Depends(get_db)):
+    product_profile = build_product_profile(request.name)
     
     listing = models.ObservedListing(
-        normalized_name=request.name,
+        normalized_name=product_profile["match_key"],
         category=request.category,
         marketplace=request.marketplace,
         condition=request.condition,
@@ -72,7 +77,7 @@ def collect_bulk(request: CollectBulkRequest, db: Session = Depends(get_db)):
 
     records = [
         models.ObservedListing(
-            normalized_name=listing.name,
+            normalized_name=build_product_profile(listing.name)["match_key"],
             category=listing.category,
             marketplace=listing.marketplace,
             condition=listing.condition,
@@ -93,15 +98,15 @@ def collect_bulk(request: CollectBulkRequest, db: Session = Depends(get_db)):
 #setting this endpoint to call this function
 @app.post("/analyze")
 def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
-
-
+    request_profile = build_product_profile(request.name)
     name = request.name
-    normalized_name = normalize_name(name)
+    normalized_name = request_profile["match_key"]
+    legacy_normalized_name = normalize_name(name)
     category = request.category
 
     snapshot = (db.query(MarketSnapshot)
                 .filter(
-                    MarketSnapshot.name == normalized_name
+                    MarketSnapshot.name.in_([normalized_name, legacy_normalized_name])
                 )
                 .first()
             )
@@ -117,6 +122,7 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
             return build_analysis_response(
                 request=request,
                 normalized_name=normalized_name,
+                product_attributes=request_profile,
                 average_price=snapshot.average,
                 median_price=snapshot.median,
                 lowest_price=snapshot.lowest_price,
@@ -133,9 +139,11 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
     listings = []
     
     for item in items:
+        item_profile = build_product_profile(item["title"])
         listings.append({
             "title": item["title"],
-            "normalized_name": normalize_name(item["title"]),
+            "normalized_name": item_profile["match_key"],
+            "attributes": item_profile,
             "price": float(item["price"]["value"]),
             "condition": item.get("condition"),
             "shipping": float(
@@ -177,6 +185,7 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
         return build_analysis_response(
             request=request,
             normalized_name=normalized_name,
+            product_attributes=request_profile,
             average_price=0,
             median_price=0,
             lowest_price=0,
@@ -185,15 +194,14 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
             cached=False,
         )
     
-    normalized_target = normalize_name(request.name)
-
     comparables = []
 
     for listing in listings:
-        normalized_listing = normalize_name(listing["title"])
-
-        if normalized_listing == normalized_target:
+        if products_are_comparable(request_profile, listing["attributes"]):
             comparables.append(listing)
+
+    if not comparables:
+        comparables = listings
 
     prices = [
         listing["price"] + listing["shipping"]
@@ -226,13 +234,14 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
     return build_analysis_response(
         request=request,
         normalized_name=normalized_name,
+        product_attributes=request_profile,
         average_price=average_price,
         median_price=median_price,
         lowest_price=lowest_price,
         highest_price=highest_price,
         listing_count=listing_count,
         cached=False,
-        comparables=listings,
+        comparables=comparables,
     )
 
 if __name__ == "__main__":

@@ -80,6 +80,7 @@ def build_analysis_response(
     *,
     request: AnalyzeRequest,
     normalized_name: str,
+    product_attributes: dict | None = None,
     average_price: float,
     median_price: float,
     lowest_price: float,
@@ -99,6 +100,7 @@ def build_analysis_response(
     return {
         "product_name": request.name,
         "normalized_name": normalized_name,
+        "product_attributes": product_attributes or {},
         "current_price": current_price,
         "average_price": average_price,
         "median_price": median_price,
