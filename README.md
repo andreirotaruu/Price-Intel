@@ -120,6 +120,8 @@ rtx 4070 founders edition
 
 That keeps the cached snapshot stable even when sellers phrase the product differently.
 
+Made the normalization scalable so that more products can be added
+
 ## Local Development
 
 ### Backend
