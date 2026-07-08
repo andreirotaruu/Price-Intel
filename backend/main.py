@@ -21,7 +21,7 @@ from backend.db.database import engine
 from backend.schemas.analyze_request import AnalyzeRequest
 from fastapi.middleware.cors import CORSMiddleware
 import statistics
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 
 #create models
@@ -117,26 +117,6 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
                 .first()
             )
     
-    if snapshot:
-        last_updated = snapshot.last_updated
-        if last_updated.tzinfo is None:
-            last_updated = last_updated.replace(tzinfo=timezone.utc)
-
-        age = datetime.now(timezone.utc) - last_updated
-
-        if age < timedelta(hours=1):
-            return build_analysis_response(
-                request=request,
-                normalized_name=normalized_name,
-                product_attributes=request_profile,
-                average_price=snapshot.average,
-                median_price=snapshot.median,
-                lowest_price=snapshot.lowest_price,
-                highest_price=snapshot.highest_price,
-                listing_count=snapshot.count,
-                cached=True,
-            )
-
     ebay = EbayAPIProvider()
     response = ebay.search(name)
 
@@ -167,7 +147,8 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
                             .get("username", ""), 
             "seller_type": item.get("seller", {})
                             .get("sellerAccountType", ""),
-            "item_id": item["itemId"]
+            "item_id": item["itemId"],
+            "item_url": item.get("itemWebUrl") or item.get("itemAffiliateWebUrl", ""),
         })
     
     records = [

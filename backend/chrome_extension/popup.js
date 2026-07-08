@@ -158,6 +158,9 @@ function renderPopup(data) {
   const sellerSummary = analysis?.seller_summary;
   const topSeller = sellerSummary?.top_seller;
   const insights = Array.isArray(analysis?.insights) ? analysis.insights : [];
+  const recommendedListings = Array.isArray(analysis?.recommended_listings)
+    ? analysis.recommended_listings
+    : [];
   const insightHtml = insights.length
     ? `
       <div class="insights">
@@ -165,6 +168,28 @@ function renderPopup(data) {
           .map((insight) => `<p>${escapeHtml(insight)}</p>`)
           .join("")}
       </div>
+    `
+    : "";
+  const recommendationsHtml = recommendedListings.length
+    ? `
+      <section class="recommendations">
+        <h2>Good similar listings</h2>
+        <div class="listing-list">
+          ${recommendedListings
+            .map(
+              (listing) => `
+                <a class="listing" href="${escapeHtml(listing.item_url)}" target="_blank" rel="noopener noreferrer">
+                  <div class="listing-copy">
+                    <span class="listing-title">${escapeHtml(listing.title)}</span>
+                    <span class="listing-meta">${escapeHtml(listing.condition)} · ${escapeHtml(listing.seller_username)} · ${formatPercent(listing.seller_feedback)} positive</span>
+                  </div>
+                  <span class="listing-price">${formatCurrency(listing.total_price)}</span>
+                </a>
+              `
+            )
+            .join("")}
+        </div>
+      </section>
     `
     : "";
 
@@ -215,6 +240,7 @@ function renderPopup(data) {
       </div>
     </div>
     ${insightHtml}
+    ${recommendationsHtml}
     <div class="meter" aria-hidden="true">
       <div class="meter-fill" style="width: ${scoreWidth}%"></div>
     </div>

@@ -220,6 +220,69 @@
       line-height: 1.35;
     }
 
+    .recommendations {
+      padding: 0 13px 13px;
+    }
+
+    .recommendations h2 {
+      margin: 0 0 8px;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    .listing-list {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .listing {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 52px;
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .listing:last-child { border-bottom: none; }
+    .listing:hover { background: #f9fafb; }
+
+    .listing-copy {
+      display: grid;
+      min-width: 0;
+      gap: 3px;
+    }
+
+    .listing-title,
+    .listing-meta {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .listing-title {
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .listing-meta {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .listing-price {
+      flex: none;
+      color: var(--good);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
     .meter {
       height: 7px;
       margin: 0 13px 13px;

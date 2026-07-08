@@ -101,6 +101,53 @@ def build_seller_summary(comparables):
     }
 
 
+def build_recommended_listings(comparables, median_price, limit=3):
+    recommendations = []
+
+    for listing in comparables or []:
+        price = _as_number(listing.get("price"))
+        shipping = _as_number(listing.get("shipping")) or 0
+        feedback_percentage = _as_number(listing.get("seller_feedback"))
+        feedback_score = _as_number(listing.get("seller_score")) or 0
+        item_url = listing.get("item_url") or ""
+
+        if (
+            price is None
+            or not item_url.startswith(("https://", "http://"))
+            or feedback_percentage is None
+            or feedback_percentage < 98
+            or feedback_score < 10
+        ):
+            continue
+
+        total_price = price + shipping
+        if median_price and total_price > median_price:
+            continue
+
+        recommendations.append(
+            {
+                "title": listing.get("title") or "Similar listing",
+                "condition": listing.get("condition") or "Unknown condition",
+                "price": price,
+                "shipping": shipping,
+                "total_price": total_price,
+                "item_url": item_url,
+                "seller_username": listing.get("seller_username") or "Seller",
+                "seller_feedback": feedback_percentage,
+                "seller_score": int(feedback_score),
+            }
+        )
+
+    recommendations.sort(
+        key=lambda listing: (
+            listing["total_price"],
+            -listing["seller_feedback"],
+            -listing["seller_score"],
+        )
+    )
+    return recommendations[:limit]
+
+
 def generate_seller_insights(seller_summary):
     if not seller_summary:
         return []
@@ -118,7 +165,7 @@ def generate_seller_insights(seller_summary):
 
     if top_seller.get("username"):
         insights.append(
-            f"Most established comparable seller: {top_seller['username']} with {top_seller['feedback_score']:,} feedback."
+            f"Most established comparable seller: {top_seller['username']} with {top_seller['feedback_score']:,} feedback score."
         )
 
     if low_feedback_count:
@@ -201,6 +248,7 @@ def build_analysis_response(
     price_delta = None
     percent_delta = None
     seller_summary = build_seller_summary(comparables)
+    recommended_listings = build_recommended_listings(comparables, median_price)
 
     if current_price and average_price:
         price_delta = average_price - current_price
@@ -230,5 +278,6 @@ def build_analysis_response(
             seller_summary,
         ),
         "seller_summary": seller_summary,
+        "recommended_listings": recommended_listings,
         "comparables": comparables or [],
     }
