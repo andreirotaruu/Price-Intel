@@ -23,6 +23,22 @@ const formatNumber = (value) =>
 const formatPercent = (value) =>
   typeof value === "number" ? `${Math.abs(value).toFixed(1)}%` : "—";
 
+const formatSellerFeedback = (seller) => {
+  if (!seller) return "—";
+
+  const username = seller.username || "Seller";
+  const score =
+    typeof seller.feedback_score === "number"
+      ? ` (${formatNumber(seller.feedback_score)})`
+      : "";
+  const percentage =
+    typeof seller.feedback_percentage === "number"
+      ? ` · ${seller.feedback_percentage.toFixed(1)}%`
+      : "";
+
+  return `${username}${score}${percentage}`;
+};
+
 function getScoreClass(score) {
   if (typeof score !== "number") return "neutral";
   if (score >= 80) return "good";
@@ -139,6 +155,8 @@ function renderPopup(data) {
     typeof analysis?.lowest_price === "number" && typeof analysis?.highest_price === "number"
       ? `${formatCurrency(analysis.lowest_price)} - ${formatCurrency(analysis.highest_price)}`
       : "—";
+  const sellerSummary = analysis?.seller_summary;
+  const topSeller = sellerSummary?.top_seller;
   const insights = Array.isArray(analysis?.insights) ? analysis.insights : [];
   const insightHtml = insights.length
     ? `
@@ -186,6 +204,10 @@ function renderPopup(data) {
       <div class="stat">
         <span class="label">Comparables</span>
         <span class="value">${formatNumber(comparableCount)}</span>
+      </div>
+      <div class="stat">
+        <span class="label">Seller signal</span>
+        <span class="value compact" title="${escapeHtml(formatSellerFeedback(topSeller))}">${escapeHtml(formatSellerFeedback(topSeller))}</span>
       </div>
       <div class="stat">
         <span class="label">Updated</span>

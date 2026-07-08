@@ -1,6 +1,17 @@
 import math
 from backend.schemas.analyze_request import AnalyzeRequest
 
+
+def _as_number(value):
+    if value is None:
+        return None
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def calculate_deal_score(current_price: float | None, market_price: float | None, comparable_count: int = 0):
     if (
         current_price is None
@@ -31,7 +42,102 @@ def calculate_deal_score(current_price: float | None, market_price: float | None
     return round(max(1, min(98, score)))
 
 
-def generate_insights(current_price, average_price, lowest_price, highest_price, comparable_count):
+def build_seller_summary(comparables):
+    seller_rows = []
+
+    for listing in comparables or []:
+        username = listing.get("seller_username") or ""
+        feedback_percentage = _as_number(listing.get("seller_feedback"))
+        feedback_score = _as_number(listing.get("seller_score"))
+        seller_type = listing.get("seller_type") or ""
+
+        if not username and feedback_percentage is None and feedback_score is None:
+            continue
+
+        seller_rows.append(
+            {
+                "username": username,
+                "feedback_percentage": feedback_percentage,
+                "feedback_score": int(feedback_score or 0),
+                "seller_type": seller_type,
+            }
+        )
+
+    if not seller_rows:
+        return None
+
+    feedback_values = [
+        seller["feedback_percentage"]
+        for seller in seller_rows
+        if seller["feedback_percentage"] is not None
+    ]
+    average_feedback = (
+        sum(feedback_values) / len(feedback_values)
+        if feedback_values
+        else None
+    )
+    low_feedback_count = sum(
+        1
+        for seller in seller_rows
+        if (
+            seller["feedback_percentage"] is not None
+            and seller["feedback_percentage"] < 95
+        )
+        or seller["feedback_score"] < 10
+    )
+    top_seller = max(
+        seller_rows,
+        key=lambda seller: (
+            seller["feedback_score"],
+            seller["feedback_percentage"] or 0,
+        ),
+    )
+
+    return {
+        "seller_count": len(seller_rows),
+        "average_feedback": average_feedback,
+        "low_feedback_count": low_feedback_count,
+        "top_seller": top_seller,
+    }
+
+
+def generate_seller_insights(seller_summary):
+    if not seller_summary:
+        return []
+
+    insights = []
+    seller_count = seller_summary["seller_count"]
+    average_feedback = seller_summary["average_feedback"]
+    low_feedback_count = seller_summary["low_feedback_count"]
+    top_seller = seller_summary["top_seller"]
+
+    if average_feedback is not None:
+        insights.append(
+            f"API seller data covers {seller_count} comparable sellers with {average_feedback:.1f}% average positive feedback."
+        )
+
+    if top_seller.get("username"):
+        insights.append(
+            f"Most established comparable seller: {top_seller['username']} with {top_seller['feedback_score']:,} feedback."
+        )
+
+    if low_feedback_count:
+        verb = "shows" if low_feedback_count == 1 else "show"
+        insights.append(
+            f"{low_feedback_count} comparable seller{'s' if low_feedback_count != 1 else ''} {verb} low feedback history, so seller reputation should be checked before buying."
+        )
+
+    return insights
+
+
+def generate_insights(
+    current_price,
+    average_price,
+    lowest_price,
+    highest_price,
+    comparable_count,
+    seller_summary=None,
+):
     insights = []
 
     if current_price and average_price:
@@ -73,6 +179,8 @@ def generate_insights(current_price, average_price, lowest_price, highest_price,
                 "Comparable prices vary widely, so condition and seller details matter more here."
             )
 
+    insights.extend(generate_seller_insights(seller_summary))
+
     return insights
 
 
@@ -92,6 +200,7 @@ def build_analysis_response(
     current_price = request.current_price
     price_delta = None
     percent_delta = None
+    seller_summary = build_seller_summary(comparables)
 
     if current_price and average_price:
         price_delta = average_price - current_price
@@ -118,6 +227,8 @@ def build_analysis_response(
             lowest_price,
             highest_price,
             listing_count,
+            seller_summary,
         ),
+        "seller_summary": seller_summary,
         "comparables": comparables or [],
     }
