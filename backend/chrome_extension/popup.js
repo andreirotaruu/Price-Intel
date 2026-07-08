@@ -51,7 +51,8 @@ function calculateDealScore(currentPrice, marketEstimate, listingCount = 0) {
     !Number.isFinite(currentPrice) ||
     !Number.isFinite(marketEstimate) ||
     currentPrice <= 0 ||
-    marketEstimate <= 0
+    marketEstimate <= 0 ||
+    listingCount < 3
   ) {
     return null;
   }
@@ -134,10 +135,9 @@ function renderPopup(data) {
   const comparableCount = analysis?.comparable_count ?? analysis?.listing_count ?? summary?.listingCount;
   const condition = product.condition || "Unknown condition";
 
-  const dealScore =
-    analysis?.deal_score ??
-    calculateDealScore(currentPrice, estimate, comparableCount) ??
-    summary?.dealScore;
+  const dealScore = analysis
+    ? analysis.deal_score ?? calculateDealScore(currentPrice, estimate, comparableCount)
+    : summary?.dealScore;
   const scoreClass = getScoreClass(dealScore);
   const scoreWidth =
     typeof dealScore === "number" ? Math.max(0, Math.min(100, dealScore)) : 0;

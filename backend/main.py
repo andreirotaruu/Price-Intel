@@ -6,6 +6,7 @@ if __package__ is None or __package__ == "":
 
 from backend.services.market import build_analysis_response
 from backend.services.normalize import (
+    build_market_search_query,
     build_product_profile,
     normalize_name,
     products_are_comparable,
@@ -121,6 +122,18 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
     response = ebay.search(name)
 
     items = response.get("itemSummaries", [])
+    market_query = build_market_search_query(request_profile, name)
+    if market_query.lower() != name.lower():
+        broad_response = ebay.search(market_query)
+        items.extend(broad_response.get("itemSummaries", []))
+
+    items = list(
+        {
+            item.get("itemId") or item.get("itemWebUrl"): item
+            for item in items
+            if item.get("itemId") or item.get("itemWebUrl")
+        }.values()
+    )
 
     listings = []
     

@@ -18,6 +18,7 @@ def calculate_deal_score(current_price: float | None, market_price: float | None
         or market_price is None
         or current_price <= 0
         or market_price <= 0
+        or comparable_count < 3
     ):
         return None
 
@@ -187,14 +188,18 @@ def generate_insights(
 ):
     insights = []
 
-    if current_price and average_price:
+    if comparable_count >= 3 and current_price and average_price:
         percent_delta = (average_price - current_price) / average_price * 100
         direction = "below" if percent_delta >= 0 else "above"
         insights.append(
             f"This listing is {abs(percent_delta):.1f}% {direction} the market average."
         )
 
-    if comparable_count:
+    if 0 < comparable_count < 3:
+        insights.append(
+            f"Only {comparable_count} comparable listing{'s' if comparable_count != 1 else ''} matched, which is not enough for a reliable deal estimate."
+        )
+    elif comparable_count:
         if current_price and average_price:
             percent_delta = (average_price - current_price) / average_price * 100
             if percent_delta >= 10:
@@ -215,7 +220,12 @@ def generate_insights(
                 f"Based on {comparable_count} comparable listings, this appears to be an early estimate."
             )
 
-    if average_price and lowest_price is not None and highest_price is not None:
+    if (
+        comparable_count >= 3
+        and average_price
+        and lowest_price is not None
+        and highest_price is not None
+    ):
         spread_pct = (highest_price - lowest_price) / average_price * 100
         if spread_pct <= 20:
             insights.append(

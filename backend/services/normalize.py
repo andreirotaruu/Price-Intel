@@ -31,6 +31,7 @@ def normalize_name(name: str) -> str:
 def _normalize_text(name: str) -> str:
     text = name.lower()
     text = re.sub(r"[^a-z0-9+\s-]", " ", text)
+    text = re.sub(r"\b(\d{3,4})(ti)\b", r"\1 \2", text)
     text = re.sub(r"\bfe\b", " founders edition ", text)
     text = re.sub(r"\bfounders?\s+editions?\b", " founders edition ", text)
     text = re.sub(r"\b(\d+)\s*gb\b", r"\1gb", text)
@@ -127,6 +128,23 @@ def build_product_profile(name: str) -> dict:
         "edition": None,
         "memory": None,
     }
+
+
+def build_market_search_query(profile: dict, fallback_name: str) -> str:
+    if profile.get("product_type") != "gpu":
+        return profile.get("normalized_name") or fallback_name
+
+    return " ".join(
+        part
+        for part in [
+            profile.get("series", "").upper(),
+            profile.get("model"),
+            profile.get("variant"),
+            profile.get("edition"),
+            profile.get("memory", "").upper(),
+        ]
+        if part
+    )
 
 
 def products_are_comparable(target: dict, candidate: dict) -> bool:
