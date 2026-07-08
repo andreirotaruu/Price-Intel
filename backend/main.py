@@ -10,6 +10,7 @@ from backend.services.normalize import (
     build_product_profile,
     normalize_name,
     products_are_comparable,
+    token_similarity_score,
 )
 from backend.providers.ebay_api import EbayAPIProvider
 from backend.schemas.collect_request import CollectRequest, CollectBulkRequest
@@ -143,6 +144,7 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
             "title": item["title"],
             "normalized_name": item_profile["match_key"],
             "attributes": item_profile,
+            "similarity_score": token_similarity_score(request_profile, item_profile),
             "price": float(item["price"]["value"]),
             "condition": item.get("condition"),
             "shipping": float(

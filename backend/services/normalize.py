@@ -3,6 +3,15 @@ import re
 GPU_SERIES_RE = re.compile(r"\b(?P<series>rtx|gtx|rx|arc)\s*(?P<model>\d{3,4})\b")
 GPU_MEMORY_RE = re.compile(r"\b(?P<memory>\d+)\s*gb\b")
 GPU_MEMORY_COMPACT_RE = re.compile(r"\b(?P<memory>\d+)gb\b")
+ACCESSORY_PATTERNS = (
+    re.compile(
+        r"\b(cooler|heatsink|heat sink|fan|shroud|backplate|water ?block|box|packaging|manual|cable|adapter|bracket)\s+only\b"
+    ),
+    re.compile(r"\b(empty box|for parts|parts only|not working)\b"),
+    re.compile(
+        r"\b(case|cover|screen protector|charger|cooler|heatsink|water ?block|replacement fan)\s+for\b"
+    ),
+)
 
 STOP_WORDS = {
     "nvidia",
@@ -22,6 +31,9 @@ STOP_WORDS = {
     "and",
     "for",
     "the",
+    "free",
+    "shipping",
+    "only",
 }
 
 def normalize_name(name: str) -> str:
@@ -36,6 +48,32 @@ def _normalize_text(name: str) -> str:
     text = re.sub(r"\bfounders?\s+editions?\b", " founders edition ", text)
     text = re.sub(r"\b(\d+)\s*gb\b", r"\1gb", text)
     return re.sub(r"\s+", " ", text).strip()
+
+
+def _is_accessory_or_parts(text: str) -> bool:
+    return any(pattern.search(text) for pattern in ACCESSORY_PATTERNS)
+
+
+def _meaningful_tokens(tokens: list[str]) -> list[str]:
+    return list(
+        dict.fromkeys(
+            token for token in tokens if token not in STOP_WORDS and len(token) > 1
+        )
+    )
+
+
+def token_similarity_score(target: dict, candidate: dict) -> float:
+    target_tokens = set(target.get("title_tokens") or [])
+    candidate_tokens = set(candidate.get("title_tokens") or [])
+    if not target_tokens or not candidate_tokens:
+        return 0.0
+
+    intersection = len(target_tokens & candidate_tokens)
+    union = len(target_tokens | candidate_tokens)
+    smaller = min(len(target_tokens), len(candidate_tokens))
+    jaccard = intersection / union
+    containment = intersection / smaller
+    return round((jaccard * 0.6) + (containment * 0.4), 3)
 
 
 def _extract_gpu_attributes(text: str, tokens: list[str]) -> dict:
@@ -111,11 +149,15 @@ def _extract_gpu_attributes(text: str, tokens: list[str]) -> dict:
 def build_product_profile(name: str) -> dict:
     text = _normalize_text(name)
     tokens = text.replace("-", " ").split()
+    title_tokens = _meaningful_tokens(tokens)
+    is_accessory_or_parts = _is_accessory_or_parts(text)
     gpu_attributes = _extract_gpu_attributes(text, tokens)
     if gpu_attributes:
+        gpu_attributes["title_tokens"] = title_tokens
+        gpu_attributes["is_accessory_or_parts"] = is_accessory_or_parts
         return gpu_attributes
 
-    words = [w for w in tokens if w not in STOP_WORDS]
+    words = title_tokens
     normalized_name = " ".join(words)
     return {
         "product_type": "generic",
@@ -127,6 +169,8 @@ def build_product_profile(name: str) -> dict:
         "variant": None,
         "edition": None,
         "memory": None,
+        "title_tokens": title_tokens,
+        "is_accessory_or_parts": is_accessory_or_parts,
     }
 
 
@@ -151,8 +195,11 @@ def products_are_comparable(target: dict, candidate: dict) -> bool:
     if target.get("product_type") != candidate.get("product_type"):
         return False
 
+    if target.get("is_accessory_or_parts") != candidate.get("is_accessory_or_parts"):
+        return False
+
     if target.get("product_type") != "gpu":
-        return target.get("match_key") == candidate.get("match_key")
+        return token_similarity_score(target, candidate) >= 0.62
 
     for field in ("brand", "series", "model"):
         target_value = target.get(field)

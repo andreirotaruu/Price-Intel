@@ -128,6 +128,7 @@ def build_recommended_listings(comparables, median_price, limit=3):
         recommendations.append(
             {
                 "title": listing.get("title") or "Similar listing",
+                "similarity_score": _as_number(listing.get("similarity_score")) or 0,
                 "condition": listing.get("condition") or "Unknown condition",
                 "price": price,
                 "shipping": shipping,
@@ -141,6 +142,7 @@ def build_recommended_listings(comparables, median_price, limit=3):
 
     recommendations.sort(
         key=lambda listing: (
+            -listing["similarity_score"],
             listing["total_price"],
             -listing["seller_feedback"],
             -listing["seller_score"],
