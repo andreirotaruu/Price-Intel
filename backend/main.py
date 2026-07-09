@@ -65,6 +65,26 @@ def _get_item_details(provider, item_id):
         return {}
 
 
+def _snapshot_is_usable(snapshot):
+    if not snapshot or not snapshot.count or snapshot.count < 3:
+        return False
+
+    prices = (
+        snapshot.average,
+        snapshot.median,
+        snapshot.lowest_price,
+        snapshot.highest_price,
+    )
+    if any(price is None or price <= 0 for price in prices):
+        return False
+
+    # Reject legacy snapshots whose range strongly suggests accessories or bad matches.
+    return (
+        snapshot.lowest_price >= snapshot.median * 0.25
+        and snapshot.highest_price <= snapshot.median * 3
+    )
+
+
 @app.post("/collect")
 def collect(request: CollectRequest, db: Session = Depends(get_db)):
     product_profile = build_product_profile(request.name)
@@ -145,7 +165,7 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
     try:
         response = ebay.search(name)
     except EbayAPIError as exc:
-        if snapshot:
+        if _snapshot_is_usable(snapshot):
             return build_analysis_response(
                 request=request,
                 normalized_name=normalized_name,
