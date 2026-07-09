@@ -198,7 +198,11 @@ async function analyzeProduct() {
   }
 
   console.log("Price Intel: sending →", productData);
-  chrome.storage.local.set({ lastAnalysis: null, lastProduct: productData });
+  chrome.storage.local.set({
+    lastAnalysis: null,
+    lastAnalysisError: null,
+    lastProduct: productData,
+  });
 
   try {
     const collectResponse = await fetch("http://localhost:8000/collect", {
@@ -217,12 +221,23 @@ async function analyzeProduct() {
     });
 
     const analysis = await analyzeResponse.json();
+    if (!analyzeResponse.ok) {
+      throw new Error(analysis.detail || `Analysis failed (${analyzeResponse.status})`);
+    }
     console.log("Price Intel: analysis result →", analysis);
 
-    chrome.storage.local.set({ lastAnalysis: analysis, lastProduct: productData });
+    chrome.storage.local.set({
+      lastAnalysis: analysis,
+      lastAnalysisError: null,
+      lastProduct: productData,
+    });
 
   } catch (err) {
-    console.error("Price Intel: backend unreachable", err);
-    chrome.storage.local.set({ lastAnalysis: null, lastProduct: productData });
+    console.error("Price Intel: analysis failed", err);
+    chrome.storage.local.set({
+      lastAnalysis: null,
+      lastAnalysisError: err.message || "Price analysis is temporarily unavailable.",
+      lastProduct: productData,
+    });
   }
 }

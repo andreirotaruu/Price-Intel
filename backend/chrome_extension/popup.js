@@ -112,6 +112,11 @@ function renderPopup(data) {
     return;
   }
 
+  if (data.lastAnalysisError) {
+    renderEmptyState("Analysis unavailable", data.lastAnalysisError);
+    return;
+  }
+
   const product = data.lastProduct;
   const analysis = data.lastAnalysis;
   const summary = data.lastBulkSummary;
@@ -250,7 +255,10 @@ function renderPopup(data) {
 }
 
 function refreshPopup() {
-  chrome.storage.local.get(["lastAnalysis", "lastProduct", "lastBulkSummary", "lastPageType"], renderPopup);
+  chrome.storage.local.get(
+    ["lastAnalysis", "lastAnalysisError", "lastProduct", "lastBulkSummary", "lastPageType"],
+    renderPopup
+  );
 }
 
 refreshPopup();
@@ -260,6 +268,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
   if (
     changes.lastAnalysis ||
+    changes.lastAnalysisError ||
     changes.lastProduct ||
     changes.lastBulkSummary ||
     changes.lastPageType
