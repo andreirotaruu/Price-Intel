@@ -35,6 +35,16 @@ STOP_WORDS = {
     "shipping",
     "only",
 }
+IDENTIFIER_FIELDS = ("epid", "gtin", "mpn")
+STRICT_ASPECT_NAMES = {
+    "model",
+    "storage capacity",
+    "memory",
+    "ram size",
+    "screen size",
+    "processor model",
+}
+INVALID_IDENTIFIERS = {"", "n/a", "na", "none", "unknown", "does not apply"}
 
 def normalize_name(name: str) -> str:
     return build_product_profile(name)["match_key"]
@@ -74,6 +84,122 @@ def token_similarity_score(target: dict, candidate: dict) -> float:
     jaccard = intersection / union
     containment = intersection / smaller
     return round((jaccard * 0.6) + (containment * 0.4), 3)
+
+
+def enrich_product_profile(profile: dict, item: dict | None) -> dict:
+    if not item:
+        return profile
+
+    enriched = dict(profile)
+    product = item.get("product") or {}
+    category_ids = list(item.get("leafCategoryIds") or [])
+    if item.get("categoryId"):
+        category_ids.append(item["categoryId"])
+    if not category_ids:
+        category_ids = [
+            category.get("categoryId")
+            for category in item.get("categories", [])
+            if category.get("categoryId")
+        ][-1:]
+
+    aspects = {}
+    for aspect in item.get("localizedAspects", []):
+        name = str(aspect.get("name") or aspect.get("localizedName") or "").lower()
+        values = aspect.get("value") or aspect.get("localizedValues") or []
+        if isinstance(values, str):
+            values = [values]
+        if name:
+            aspects[name] = {_normalize_text(str(value)) for value in values}
+    for group in product.get("aspectGroups") or []:
+        for aspect in group.get("aspects") or []:
+            name = str(aspect.get("localizedName") or "").lower()
+            values = aspect.get("localizedValues") or []
+            if name:
+                aspects.setdefault(name, set()).update(
+                    _normalize_text(str(value)) for value in values
+                )
+
+    identifiers = {
+        "epid": {
+            str(value).lower()
+            for value in (item.get("epid"), item.get("inferredEpid"))
+            if value and str(value).lower() not in INVALID_IDENTIFIERS
+        },
+        "gtin": {
+            str(value).lower()
+            for value in ([item.get("gtin")] + list(product.get("gtins") or []))
+            if value and str(value).lower() not in INVALID_IDENTIFIERS
+        },
+        "mpn": {
+            str(value).lower()
+            for value in ([item.get("mpn")] + list(product.get("mpns") or []))
+            if value and str(value).lower() not in INVALID_IDENTIFIERS
+        },
+    }
+
+    condition = str(item.get("condition") or "").lower()
+    condition_id = str(item.get("conditionId") or "")
+    enriched.update(
+        {
+            "category_ids": set(category_ids),
+            "identifiers": identifiers,
+            "aspects": aspects,
+            "condition_group": (
+                "parts"
+                if condition_id == "7000" or "parts" in condition or "not working" in condition
+                else "working"
+                if condition or condition_id
+                else None
+            ),
+        }
+    )
+    return enriched
+
+
+def _structured_profiles_are_compatible(target: dict, candidate: dict) -> bool:
+    target_condition = target.get("condition_group")
+    candidate_condition = candidate.get("condition_group")
+    if target_condition and candidate_condition and target_condition != candidate_condition:
+        return False
+
+    target_categories = set(target.get("category_ids") or [])
+    candidate_categories = set(candidate.get("category_ids") or [])
+    if target_categories and candidate_categories and target_categories.isdisjoint(candidate_categories):
+        return False
+
+    target_identifiers = target.get("identifiers") or {}
+    candidate_identifiers = candidate.get("identifiers") or {}
+    shares_identifier = any(
+        set(target_identifiers.get(field) or [])
+        & set(candidate_identifiers.get(field) or [])
+        for field in IDENTIFIER_FIELDS
+    )
+    if not shares_identifier:
+        for field in IDENTIFIER_FIELDS:
+            target_values = set(target_identifiers.get(field) or [])
+            candidate_values = set(candidate_identifiers.get(field) or [])
+            if target_values and candidate_values and target_values.isdisjoint(candidate_values):
+                return False
+
+    target_aspects = target.get("aspects") or {}
+    candidate_aspects = candidate.get("aspects") or {}
+    for name in STRICT_ASPECT_NAMES:
+        target_values = set(target_aspects.get(name) or [])
+        candidate_values = set(candidate_aspects.get(name) or [])
+        if target_values and candidate_values and target_values.isdisjoint(candidate_values):
+            return False
+
+    return True
+
+
+def _profiles_share_identifier(target: dict, candidate: dict) -> bool:
+    target_identifiers = target.get("identifiers") or {}
+    candidate_identifiers = candidate.get("identifiers") or {}
+    return any(
+        set(target_identifiers.get(field) or [])
+        & set(candidate_identifiers.get(field) or [])
+        for field in IDENTIFIER_FIELDS
+    )
 
 
 def _extract_gpu_attributes(text: str, tokens: list[str]) -> dict:
@@ -198,7 +324,12 @@ def products_are_comparable(target: dict, candidate: dict) -> bool:
     if target.get("is_accessory_or_parts") != candidate.get("is_accessory_or_parts"):
         return False
 
+    if not _structured_profiles_are_compatible(target, candidate):
+        return False
+
     if target.get("product_type") != "gpu":
+        if _profiles_share_identifier(target, candidate):
+            return True
         return token_similarity_score(target, candidate) >= 0.62
 
     for field in ("brand", "series", "model"):

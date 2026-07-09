@@ -8,13 +8,14 @@ from backend.services.market import build_analysis_response
 from backend.services.normalize import (
     build_market_search_query,
     build_product_profile,
+    enrich_product_profile,
     normalize_name,
     products_are_comparable,
     token_similarity_score,
 )
-from backend.providers.ebay_api import EbayAPIProvider
+from backend.providers.ebay_api import EbayAPIError, EbayAPIProvider
 from backend.schemas.collect_request import CollectRequest, CollectBulkRequest
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from backend.db.database import SessionLocal
 from backend.db import models
@@ -23,6 +24,7 @@ from backend.db.database import engine
 from backend.schemas.analyze_request import AnalyzeRequest
 from fastapi.middleware.cors import CORSMiddleware
 import statistics
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 
@@ -54,6 +56,13 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def _get_item_details(provider, item_id):
+    try:
+        return provider.get_item(item_id)
+    except Exception:
+        return {}
 
 
 @app.post("/collect")
@@ -120,13 +129,44 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
             )
     
     ebay = EbayAPIProvider()
-    response = ebay.search(name)
+    request_profile = enrich_product_profile(
+        request_profile,
+        {"condition": request.condition} if request.condition else None,
+    )
+    if request.item_id:
+        try:
+            request_profile = enrich_product_profile(
+                request_profile,
+                ebay.get_item_by_legacy_id(request.item_id),
+            )
+        except Exception:
+            pass
+
+    try:
+        response = ebay.search(name)
+    except EbayAPIError as exc:
+        if snapshot:
+            return build_analysis_response(
+                request=request,
+                normalized_name=normalized_name,
+                product_attributes=request_profile,
+                average_price=snapshot.average,
+                median_price=snapshot.median,
+                lowest_price=snapshot.lowest_price,
+                highest_price=snapshot.highest_price,
+                listing_count=snapshot.count,
+                cached=True,
+            )
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     items = response.get("itemSummaries", [])
     market_query = build_market_search_query(request_profile, name)
     if market_query.lower() != name.lower():
-        broad_response = ebay.search(market_query)
-        items.extend(broad_response.get("itemSummaries", []))
+        try:
+            broad_response = ebay.search(market_query)
+            items.extend(broad_response.get("itemSummaries", []))
+        except EbayAPIError:
+            pass
 
     items = list(
         {
@@ -140,6 +180,7 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
     
     for item in items:
         item_profile = build_product_profile(item["title"])
+        item_profile = enrich_product_profile(item_profile, item)
         listings.append({
             "title": item["title"],
             "normalized_name": item_profile["match_key"],
@@ -163,8 +204,33 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
             "seller_type": item.get("seller", {})
                             .get("sellerAccountType", ""),
             "item_id": item["itemId"],
+            "legacy_item_id": item.get("legacyItemId", ""),
             "item_url": item.get("itemWebUrl") or item.get("itemAffiliateWebUrl", ""),
         })
+
+    detail_candidates = sorted(
+        (
+            listing
+            for listing in listings
+            if (
+                (not request.item_id or listing["legacy_item_id"] != request.item_id)
+                and products_are_comparable(request_profile, listing["attributes"])
+            )
+        ),
+        key=lambda listing: listing["similarity_score"],
+        reverse=True,
+    )[:12]
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        future_to_listing = {
+            executor.submit(_get_item_details, ebay, listing["item_id"]): listing
+            for listing in detail_candidates
+        }
+        for future in as_completed(future_to_listing):
+            listing = future_to_listing[future]
+            listing["attributes"] = enrich_product_profile(
+                listing["attributes"],
+                future.result(),
+            )
     
     records = [
         models.ObservedListing(
@@ -199,11 +265,25 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
     comparables = []
 
     for listing in listings:
-        if products_are_comparable(request_profile, listing["attributes"]):
+        if (
+            (not request.item_id or listing["legacy_item_id"] != request.item_id)
+            and products_are_comparable(request_profile, listing["attributes"])
+        ):
             comparables.append(listing)
 
     if not comparables:
-        comparables = listings
+        return build_analysis_response(
+            request=request,
+            normalized_name=normalized_name,
+            product_attributes=request_profile,
+            average_price=0,
+            median_price=0,
+            lowest_price=0,
+            highest_price=0,
+            listing_count=0,
+            cached=False,
+            comparables=[],
+        )
 
     prices = [
         listing["price"] + listing["shipping"]

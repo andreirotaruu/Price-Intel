@@ -30,6 +30,7 @@ function extractEbayData() {
   // Breadcrumb is usually: Home > Category > Subcategory > ...
   // Index 1 gives us the top-level category (skip "Home" at index 0)
   const category = breadcrumbs.length > 1 ? breadcrumbs[1].innerText.trim() : "General";
+  const itemIdMatch = window.location.pathname.match(/\/itm\/(?:[^/]+\/)?(\d+)/);
 
   return {
     name: title,
@@ -37,6 +38,7 @@ function extractEbayData() {
     current_price: price,
     marketplace: "ebay",
     condition: condition,
+    item_id: itemIdMatch ? itemIdMatch[1] : null,
   };
 }
 
