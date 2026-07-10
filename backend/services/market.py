@@ -104,6 +104,7 @@ def build_seller_summary(comparables):
 
 def build_recommended_listings(comparables, median_price, limit=3):
     recommendations = []
+    fallback_recommendations = []
 
     for listing in comparables or []:
         price = _as_number(listing.get("price"))
@@ -111,6 +112,23 @@ def build_recommended_listings(comparables, median_price, limit=3):
         feedback_percentage = _as_number(listing.get("seller_feedback"))
         feedback_score = _as_number(listing.get("seller_score")) or 0
         item_url = listing.get("item_url") or ""
+
+        if price is not None and item_url.startswith(("https://", "http://")):
+            total_price = price + shipping
+            fallback_recommendations.append(
+                {
+                    "title": listing.get("title") or "Similar listing",
+                    "similarity_score": _as_number(listing.get("similarity_score")) or 0,
+                    "condition": listing.get("condition") or "Unknown condition",
+                    "price": price,
+                    "shipping": shipping,
+                    "total_price": total_price,
+                    "item_url": item_url,
+                    "seller_username": listing.get("seller_username") or "Seller",
+                    "seller_feedback": feedback_percentage,
+                    "seller_score": int(feedback_score),
+                }
+            )
 
         if (
             price is None
@@ -148,7 +166,35 @@ def build_recommended_listings(comparables, median_price, limit=3):
             -listing["seller_score"],
         )
     )
-    return recommendations[:limit]
+    recommendations = recommendations[:limit]
+
+    if len(recommendations) >= limit:
+        return recommendations
+
+    recommendation_urls = {
+        recommendation["item_url"]
+        for recommendation in recommendations
+    }
+    fallback_recommendations.sort(
+        key=lambda listing: (
+            -listing["similarity_score"],
+            listing["total_price"],
+            -(listing["seller_feedback"] or 0),
+            -listing["seller_score"],
+        )
+    )
+
+    for listing in fallback_recommendations:
+        if listing["item_url"] in recommendation_urls:
+            continue
+
+        recommendations.append(listing)
+        recommendation_urls.add(listing["item_url"])
+
+        if len(recommendations) >= limit:
+            break
+
+    return recommendations
 
 
 def generate_seller_insights(seller_summary):

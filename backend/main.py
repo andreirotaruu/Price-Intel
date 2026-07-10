@@ -85,6 +85,81 @@ def _snapshot_is_usable(snapshot):
     )
 
 
+def _build_listing_from_item(item, request_profile):
+    item_profile = build_product_profile(item["title"])
+    item_profile = enrich_product_profile(item_profile, item)
+
+    return {
+        "title": item["title"],
+        "normalized_name": item_profile["match_key"],
+        "attributes": item_profile,
+        "similarity_score": token_similarity_score(request_profile, item_profile),
+        "price": float(item["price"]["value"]),
+        "condition": item.get("condition"),
+        "shipping": float(
+            item.get("shippingOptions", [{}])[0]
+                .get("shippingCost", {})
+                .get("value", 0)
+        ),
+        "seller_feedback": float(
+            item.get("seller", {})
+                .get("feedbackPercentage", 0)
+        ),
+        "seller_score": item.get("seller", {})
+                        .get("feedbackScore", 0),
+        "seller_username": item.get("seller", {})
+                        .get("username", ""),
+        "seller_type": item.get("seller", {})
+                        .get("sellerAccountType", ""),
+        "item_id": item.get("itemId"),
+        "legacy_item_id": item.get("legacyItemId", ""),
+        "item_url": item.get("itemWebUrl") or item.get("itemAffiliateWebUrl", ""),
+    }
+
+
+def _snapshot_response_kwargs(snapshot):
+    return {
+        "average_price": snapshot.average,
+        "median_price": snapshot.median,
+        "lowest_price": snapshot.lowest_price,
+        "highest_price": snapshot.highest_price,
+        "listing_count": snapshot.count,
+        "cached": True,
+    }
+
+
+def _save_observed_listings(db, listings, category):
+    for listing in listings:
+        item_id = listing.get("item_id")
+        observed = None
+
+        if item_id:
+            observed = (
+                db.query(models.ObservedListing)
+                .filter(models.ObservedListing.item_id == item_id)
+                .first()
+            )
+
+        if not observed:
+            observed = models.ObservedListing(item_id=item_id)
+            db.add(observed)
+
+        observed.normalized_name = listing["normalized_name"]
+        observed.title = listing.get("title")
+        observed.category = listing.get("category", category)
+        observed.marketplace = listing.get("marketplace", "ebay")
+        observed.condition = listing.get("condition", "Unknown")
+        observed.observed_price = listing["price"] + listing["shipping"]
+        observed.shipping = listing.get("shipping")
+        observed.seller_feedback = listing.get("seller_feedback")
+        observed.seller_score = listing.get("seller_score")
+        observed.seller_username = listing.get("seller_username")
+        observed.seller_type = listing.get("seller_type")
+        observed.source = listing.get("item_url")
+
+    db.commit()
+
+
 @app.post("/collect")
 def collect(request: CollectRequest, db: Session = Depends(get_db)):
     product_profile = build_product_profile(request.name)
@@ -170,12 +245,7 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
                 request=request,
                 normalized_name=normalized_name,
                 product_attributes=request_profile,
-                average_price=snapshot.average,
-                median_price=snapshot.median,
-                lowest_price=snapshot.lowest_price,
-                highest_price=snapshot.highest_price,
-                listing_count=snapshot.count,
-                cached=True,
+                **_snapshot_response_kwargs(snapshot),
             )
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -196,43 +266,15 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
         }.values()
     )
 
-    listings = []
-    
-    for item in items:
-        item_profile = build_product_profile(item["title"])
-        item_profile = enrich_product_profile(item_profile, item)
-        listings.append({
-            "title": item["title"],
-            "normalized_name": item_profile["match_key"],
-            "attributes": item_profile,
-            "similarity_score": token_similarity_score(request_profile, item_profile),
-            "price": float(item["price"]["value"]),
-            "condition": item.get("condition"),
-            "shipping": float(
-                item.get("shippingOptions", [{}])[0]
-                    .get("shippingCost", {})
-                    .get("value", 0)
-            ),
-            "seller_feedback": float(
-                item.get("seller", {})
-                    .get("feedbackPercentage", 0)
-            ),
-            "seller_score": item.get("seller", {})
-                            .get("feedbackScore", 0),
-            "seller_username": item.get("seller", {})
-                            .get("username", ""), 
-            "seller_type": item.get("seller", {})
-                            .get("sellerAccountType", ""),
-            "item_id": item["itemId"],
-            "legacy_item_id": item.get("legacyItemId", ""),
-            "item_url": item.get("itemWebUrl") or item.get("itemAffiliateWebUrl", ""),
-        })
+    listings = [_build_listing_from_item(item, request_profile) for item in items]
 
     detail_candidates = sorted(
         (
             listing
             for listing in listings
             if (
+                listing["item_id"]
+                and
                 (not request.item_id or listing["legacy_item_id"] != request.item_id)
                 and products_are_comparable(request_profile, listing["attributes"])
             )
@@ -252,24 +294,19 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
                 future.result(),
             )
     
-    records = [
-        models.ObservedListing(
-            normalized_name=listing["normalized_name"],
-            category=listing.get("category", category),
-            marketplace=listing.get("marketplace", "ebay"),
-            condition=listing.get("condition", "Unknown"),
-            observed_price=listing["price"] + listing["shipping"],
-        )
-        for listing in listings
-    ]
-
-    db.add_all(records)
-    db.commit()
+    _save_observed_listings(db, listings, category)
     
     #to-do change to HTTP exception
     if not listings:
         print("No listings found")
         print(response)
+        if _snapshot_is_usable(snapshot):
+            return build_analysis_response(
+                request=request,
+                normalized_name=normalized_name,
+                product_attributes=request_profile,
+                **_snapshot_response_kwargs(snapshot),
+            )
         return build_analysis_response(
             request=request,
             normalized_name=normalized_name,
@@ -292,6 +329,14 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
             comparables.append(listing)
 
     if not comparables:
+        if _snapshot_is_usable(snapshot):
+            return build_analysis_response(
+                request=request,
+                normalized_name=normalized_name,
+                product_attributes=request_profile,
+                comparables=[],
+                **_snapshot_response_kwargs(snapshot),
+            )
         return build_analysis_response(
             request=request,
             normalized_name=normalized_name,
@@ -310,24 +355,34 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
         for listing in comparables
     ]
 
-    average_price = statistics.mean(prices)
-    median_price = statistics.median(prices)
-    lowest_price = min(prices)
-    highest_price = max(prices)
-    listing_count = len(prices)
+    if _snapshot_is_usable(snapshot):
+        average_price = snapshot.average
+        median_price = snapshot.median
+        lowest_price = snapshot.lowest_price
+        highest_price = snapshot.highest_price
+        listing_count = snapshot.count
+        cached = True
+    else:
+        average_price = statistics.mean(prices)
+        median_price = statistics.median(prices)
+        lowest_price = min(prices)
+        highest_price = max(prices)
+        listing_count = len(prices)
+        cached = False
 
     if not snapshot:
         snapshot = MarketSnapshot(name=normalized_name)
 
-    snapshot.average = average_price
-    snapshot.median = median_price
-    snapshot.lowest_price = lowest_price
-    snapshot.highest_price = highest_price
-    snapshot.count = listing_count
-    snapshot.last_updated = datetime.now(timezone.utc)
+    if not cached:
+        snapshot.average = average_price
+        snapshot.median = median_price
+        snapshot.lowest_price = lowest_price
+        snapshot.highest_price = highest_price
+        snapshot.count = listing_count
+        snapshot.last_updated = datetime.now(timezone.utc)
 
-    db.add(snapshot)
-    db.commit()
+        db.add(snapshot)
+        db.commit()
     
     #store in DB
     #to-do change db column names for min and max price
@@ -342,7 +397,7 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
         lowest_price=lowest_price,
         highest_price=highest_price,
         listing_count=listing_count,
-        cached=False,
+        cached=cached,
         comparables=comparables,
     )
 

@@ -39,6 +39,19 @@ const formatSellerFeedback = (seller) => {
   return `${username}${score}${percentage}`;
 };
 
+const formatListingMeta = (listing) => {
+  const parts = [
+    listing.condition,
+    listing.seller_username,
+  ].filter(Boolean);
+
+  if (typeof listing.seller_feedback === "number") {
+    parts.push(`${formatPercent(listing.seller_feedback)} positive`);
+  }
+
+  return parts.join(" · ");
+};
+
 function getScoreClass(score) {
   if (typeof score !== "number") return "neutral";
   if (score >= 80) return "good";
@@ -186,7 +199,7 @@ function renderPopup(data) {
                 <a class="listing" href="${escapeHtml(listing.item_url)}" target="_blank" rel="noopener noreferrer">
                   <div class="listing-copy">
                     <span class="listing-title">${escapeHtml(listing.title)}</span>
-                    <span class="listing-meta">${escapeHtml(listing.condition)} · ${escapeHtml(listing.seller_username)} · ${formatPercent(listing.seller_feedback)} positive</span>
+                    <span class="listing-meta">${escapeHtml(formatListingMeta(listing))}</span>
                   </div>
                   <span class="listing-price">${formatCurrency(listing.total_price)}</span>
                 </a>
