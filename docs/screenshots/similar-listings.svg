@@ -1,0 +1,21 @@
+<svg width="900" height="560" viewBox="0 0 900 560" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="900" height="560" rx="24" fill="#F5F7FA"/>
+  <rect x="70" y="48" width="760" height="464" rx="18" fill="#FFFFFF" stroke="#D7DCE3"/>
+  <rect x="110" y="96" width="260" height="28" rx="6" fill="#111827"/>
+  <text x="450" y="126" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#6B7280">Good Similar Listings</text>
+  <g>
+    <rect x="110" y="168" width="680" height="76" rx="12" fill="#F9FAFB" stroke="#E5E7EB"/>
+    <rect x="132" y="190" width="360" height="16" rx="4" fill="#D1D5DB"/>
+    <rect x="132" y="216" width="250" height="12" rx="4" fill="#E5E7EB"/>
+    <rect x="692" y="194" width="70" height="24" rx="6" fill="#16A34A"/>
+    <rect x="110" y="266" width="680" height="76" rx="12" fill="#F9FAFB" stroke="#E5E7EB"/>
+    <rect x="132" y="288" width="410" height="16" rx="4" fill="#D1D5DB"/>
+    <rect x="132" y="314" width="280" height="12" rx="4" fill="#E5E7EB"/>
+    <rect x="692" y="292" width="70" height="24" rx="6" fill="#16A34A"/>
+    <rect x="110" y="364" width="680" height="76" rx="12" fill="#F9FAFB" stroke="#E5E7EB"/>
+    <rect x="132" y="386" width="330" height="16" rx="4" fill="#D1D5DB"/>
+    <rect x="132" y="412" width="260" height="12" rx="4" fill="#E5E7EB"/>
+    <rect x="692" y="390" width="70" height="24" rx="6" fill="#16A34A"/>
+  </g>
+  <text x="450" y="492" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#6B7280">Replace with real similar-listings screenshot</text>
+</svg>
