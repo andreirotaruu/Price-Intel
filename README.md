@@ -8,7 +8,6 @@ The project is designed around one practical question:
 
 ## Screenshots
 
-Placeholder images are included in `docs/screenshots/`. Replace them with real screenshots when available.
 
 | Listing Analysis | Similar Listings |
 | --- | --- |
