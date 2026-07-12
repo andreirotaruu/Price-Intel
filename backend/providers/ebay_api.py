@@ -1,7 +1,8 @@
 import requests
 import os
 from requests.auth import HTTPBasicAuth
-from dotenv import load_dotenv
+
+from backend.config import load_project_env
 
 
 class EbayAPIError(Exception):
@@ -14,7 +15,7 @@ class EbayAuthenticationError(EbayAPIError):
 
 class EbayAPIProvider:
     def __init__(self):
-        load_dotenv()
+        load_project_env()
         self._token = os.getenv("EBAY_API_TOKEN")
 
     def _refresh_token(self):

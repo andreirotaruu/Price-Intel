@@ -8,7 +8,6 @@ The project is designed around one practical question:
 
 ## Screenshots
 
-
 | Listing Analysis | Similar Listings |
 | --- | --- |
 | ![Price Intel popup analysis placeholder](docs/screenshots/popup-analysis.svg) | ![Price Intel similar listings placeholder](docs/screenshots/similar-listings.svg) |
