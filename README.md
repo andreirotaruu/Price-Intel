@@ -10,7 +10,7 @@ The project is designed around one practical question:
 
 | Listing Analysis | Similar Listings |
 | --- | --- |
-| ![Price Intel popup analysis placeholder](docs/screenshots/popup-analysis.svg) | ![Price Intel similar listings placeholder](docs/screenshots/similar-listings.svg) |
+| ![Price Intel popup showing deal score and market pricing](docs/screenshots/popup-analysis-overview.png) | ![Price Intel popup showing seller signal and similar listings](docs/screenshots/popup-analysis-listings.png) |
 
 | eBay Listing Capture | Search Result Collection |
 | --- | --- |
