@@ -12,10 +12,6 @@ The project is designed around one practical question:
 | --- | --- |
 | ![Price Intel popup showing deal score and market pricing](docs/screenshots/popup-analysis-overview.png) | ![Price Intel popup showing seller signal and similar listings](docs/screenshots/popup-analysis-listings.png) |
 
-| eBay Listing Capture | Search Result Collection |
-| --- | --- |
-| ![eBay listing capture placeholder](docs/screenshots/ebay-listing.svg) | ![eBay search collection placeholder](docs/screenshots/search-collection.svg) |
-
 ## Features
 
 - Chrome extension for eBay item pages and search result pages
