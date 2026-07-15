@@ -3,6 +3,7 @@ import re
 import requests
 from backend.providers.buy_provider import BuyPriceProvider
 from backend.domain.product_query import ProductQuery
+from backend.config import get_settings
 from typing import Optional
 import statistics
 
@@ -23,10 +24,16 @@ class BestBuyProvider(BuyPriceProvider):
         headers = {"User-Agent": "ResellIntel/1.0 (price intel)"}
 
         try:
-            response = requests.get(self.SEARCH_URL, params=params, headers=headers, timeout=10)
+            response = requests.get(
+                self.SEARCH_URL,
+                params=params,
+                headers=headers,
+                timeout=get_settings().http_request_timeout,
+            )
             print(response.status_code)
-        except Exception as e:
+        except requests.RequestException as e:
             print("Best Buy Request Failed: ", e)
+            return None
 
         #get response
         if response.status_code != 200:
@@ -85,4 +92,3 @@ class BestBuyProvider(BuyPriceProvider):
 
 
         
-

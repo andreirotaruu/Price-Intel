@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 from backend.providers.buy_provider import BuyPriceProvider
 from backend.domain.product_query import ProductQuery
+from backend.config import get_settings
 import requests
 import statistics
 
@@ -36,7 +37,16 @@ class EbayPriceProvider(BuyPriceProvider):
         }
 
         #get the page response
-        response = requests.get(self.SEARCH_URL, params=params, headers=headers)
+        try:
+            response = requests.get(
+                self.SEARCH_URL,
+                params=params,
+                headers=headers,
+                timeout=get_settings().http_request_timeout,
+            )
+        except requests.RequestException as exc:
+            print(f"There was a problem getting the page: {exc}")
+            return None
 
         if response.status_code != 200:
             print(f"There was a problem getting the page. Status Code: {response.status_code}")

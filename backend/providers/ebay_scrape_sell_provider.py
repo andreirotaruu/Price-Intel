@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 import requests
 from backend.providers.sell_provider import SellPriceProvider
 from backend.domain.product_query import ProductQuery
+from backend.config import get_settings
 import statistics
 
 class EbayScrapeSellProvider(SellPriceProvider):
@@ -38,7 +39,16 @@ class EbayScrapeSellProvider(SellPriceProvider):
         }
 
         #open page
-        response = requests.get(self.SELL_URL, params=params, headers=headers)
+        try:
+            response = requests.get(
+                self.SELL_URL,
+                params=params,
+                headers=headers,
+                timeout=get_settings().http_request_timeout,
+            )
+        except requests.RequestException as exc:
+            print(f"There was an error when getting the page for eBay: {exc}")
+            return None
 
         #handle error response
         if response.status_code != 200:

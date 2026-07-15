@@ -1,9 +1,12 @@
 from pathlib import Path
 import sys
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from backend.config import get_settings
 from backend.services.market import build_analysis_response
 from backend.services.normalize import (
     build_market_search_query,
@@ -28,14 +31,19 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 
+settings = get_settings()
 #create models
-models.Base.metadata.create_all(bind=engine)
+try:
+    models.Base.metadata.create_all(bind=engine)
+except SQLAlchemyError:
+    pass
 #initialize fastAPI
-app = FastAPI()
+app = FastAPI(title="Price Intel API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_allowed_origins,
+    allow_origin_regex=settings.cors_allowed_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -58,10 +66,25 @@ def get_db():
         db.close()
 
 
+@app.get("/health")
+def health(db: Session = Depends(get_db)):
+    database_status = "ok"
+    try:
+        db.execute(text("SELECT 1"))
+    except SQLAlchemyError:
+        database_status = "error"
+
+    return {
+        "status": "ok" if database_status == "ok" else "degraded",
+        "database": database_status,
+        "ebay_credentials_configured": settings.ebay_credentials_configured,
+    }
+
+
 def _get_item_details(provider, item_id):
     try:
         return provider.get_item(item_id)
-    except Exception:
+    except EbayAPIError:
         return {}
 
 
@@ -172,8 +195,12 @@ def collect(request: CollectRequest, db: Session = Depends(get_db)):
         observed_price=request.current_price,
     )
 
-    db.add(listing)
-    db.commit()
+    try:
+        db.add(listing)
+        db.commit()
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Could not save listing.") from exc
 
     return {
         "status": "saved"
@@ -198,8 +225,12 @@ def collect_bulk(request: CollectBulkRequest, db: Session = Depends(get_db)):
         for listing in request.listings
     ]
 
-    db.add_all(records)
-    db.commit()
+    try:
+        db.add_all(records)
+        db.commit()
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Could not save listings.") from exc
 
     return {
         "status": "saved",
@@ -234,7 +265,7 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
                 request_profile,
                 ebay.get_item_by_legacy_id(request.item_id),
             )
-        except Exception:
+        except EbayAPIError:
             pass
 
     try:
@@ -294,7 +325,11 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
                 future.result(),
             )
     
-    _save_observed_listings(db, listings, category)
+    try:
+        _save_observed_listings(db, listings, category)
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Could not save observed listings.") from exc
     
     #to-do change to HTTP exception
     if not listings:
@@ -381,8 +416,12 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
         snapshot.count = listing_count
         snapshot.last_updated = datetime.now(timezone.utc)
 
-        db.add(snapshot)
-        db.commit()
+        try:
+            db.add(snapshot)
+            db.commit()
+        except SQLAlchemyError as exc:
+            db.rollback()
+            raise HTTPException(status_code=500, detail="Could not save market snapshot.") from exc
     
     #store in DB
     #to-do change db column names for min and max price

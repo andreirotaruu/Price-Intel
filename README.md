@@ -174,9 +174,17 @@ DATABASE_URL=sqlite:///./backend/price_intel.db
 EBAY_API_TOKEN=your_access_token
 EBAY_CLIENT_ID=your_client_id
 EBAY_CLIENT_SECRET=your_client_secret
+CORS_ALLOWED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
+CORS_ALLOWED_ORIGIN_REGEX=^chrome-extension://[a-zA-Z0-9_-]+$
+EBAY_REQUEST_TIMEOUT=15
+HTTP_REQUEST_TIMEOUT=10
 ```
 
-`EBAY_API_TOKEN` can be used directly. If it expires, the backend can refresh it when `EBAY_CLIENT_ID` and `EBAY_CLIENT_SECRET` are set.
+`EBAY_API_TOKEN` can be used directly. If it is missing or eBay rejects it as expired, the backend automatically requests a fresh OAuth token when `EBAY_CLIENT_ID` and `EBAY_CLIENT_SECRET` are set.
+
+`CORS_ALLOWED_ORIGINS` is a comma-separated allowlist for browser origins. The default allows local development origins, and `CORS_ALLOWED_ORIGIN_REGEX` allows Chrome extension origins without opening the API to every website.
+
+`EBAY_REQUEST_TIMEOUT` controls eBay Browse API and OAuth calls. `HTTP_REQUEST_TIMEOUT` controls other HTTP calls such as fallback scraping providers.
 
 ### Start the Backend
 
@@ -190,6 +198,12 @@ The API will be available at:
 
 ```text
 http://localhost:8000
+```
+
+Check backend health with:
+
+```bash
+curl http://localhost:8000/health
 ```
 
 ### Load the Extension
