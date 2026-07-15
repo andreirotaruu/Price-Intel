@@ -6,7 +6,8 @@
   "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": [
     "https://www.ebay.com/*",
-    "http://localhost:8000/*"
+    "http://localhost:8000/*",
+    "https://*.onrender.com/*"
   ],
   "content_scripts": [
     {

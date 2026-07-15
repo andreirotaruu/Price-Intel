@@ -1,4 +1,5 @@
 const url = window.location.href;
+const API_BASE_URL = "http://localhost:8000";
 
 if (url.includes("/sch/")) {
     chrome.storage.local.set({ lastPageType: "search" });
@@ -170,7 +171,7 @@ async function collectSearchResults() {
   chrome.storage.local.set({ lastBulkSummary: summary, lastBulkListings: listings });
 
   try {
-    const response = await fetch("http://localhost:8000/collect_bulk", {
+    const response = await fetch(`${API_BASE_URL}/collect_bulk`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ listings }),
@@ -205,7 +206,7 @@ async function analyzeProduct() {
   });
 
   try {
-    const collectResponse = await fetch("http://localhost:8000/collect", {
+    const collectResponse = await fetch(`${API_BASE_URL}/collect`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(productData),
@@ -214,7 +215,7 @@ async function analyzeProduct() {
     const collectResult = await collectResponse.json();
     console.log("Price Intel: collect result →", collectResult);
 
-    const analyzeResponse = await fetch("http://localhost:8000/analyze", {
+    const analyzeResponse = await fetch(`${API_BASE_URL}/analyze`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(productData),
