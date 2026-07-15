@@ -19,6 +19,8 @@ Use this for a small friends-and-family test on Render plus an unpacked Chrome e
    - `EBAY_CLIENT_ID`
    - `EBAY_CLIENT_SECRET`
 
+`CORS_ALLOWED_ORIGINS` should include `https://www.ebay.com`. Extension content script requests can preflight from the eBay page origin even though the code lives in the extension.
+
 The FastAPI service uses:
 
 ```bash

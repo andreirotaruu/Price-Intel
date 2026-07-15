@@ -202,6 +202,59 @@
     .value.bad  { color: var(--bad); }
     .value.neutral { color: var(--warn); }
 
+    .confidence {
+      display: grid;
+      gap: 8px;
+      padding: 0 13px 13px;
+    }
+
+    .confidence-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid rgba(37, 99, 235, 0.16);
+      border-radius: 8px;
+      background: #eff6ff;
+    }
+
+    .confidence-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .confidence-level {
+      color: var(--accent);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .confidence-signals {
+      display: grid;
+      gap: 6px;
+      color: #374151;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .confidence-signals span {
+      position: relative;
+      padding-left: 13px;
+    }
+
+    .confidence-signals span::before {
+      position: absolute;
+      top: 0.45em;
+      left: 0;
+      width: 5px;
+      height: 5px;
+      border-radius: 999px;
+      background: var(--accent);
+      content: "";
+    }
+
     .insights {
       display: grid;
       gap: 8px;

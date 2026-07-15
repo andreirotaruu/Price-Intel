@@ -137,6 +137,8 @@ def _build_listing_from_item(item, request_profile):
         "item_id": item.get("itemId"),
         "legacy_item_id": item.get("legacyItemId", ""),
         "item_url": item.get("itemWebUrl") or item.get("itemAffiliateWebUrl", ""),
+        "item_creation_date": item.get("itemCreationDate"),
+        "item_origin_date": item.get("itemOriginDate"),
     }
 
 

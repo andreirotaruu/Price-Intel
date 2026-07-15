@@ -1,4 +1,5 @@
 import math
+from datetime import datetime, timezone
 from backend.schemas.analyze_request import AnalyzeRequest
 
 
@@ -41,6 +42,136 @@ def calculate_deal_score(current_price: float | None, market_price: float | None
 
     score = 50 + (base_score - 50) * confidence_weight
     return round(max(1, min(98, score)))
+
+
+def calculate_spread_pct(average_price, lowest_price, highest_price):
+    if not average_price or lowest_price is None or highest_price is None:
+        return None
+
+    return (highest_price - lowest_price) / average_price * 100
+
+
+def _parse_ebay_datetime(value):
+    if not value:
+        return None
+
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+
+
+def _listing_age_days(listing, now=None):
+    created_at = _parse_ebay_datetime(listing.get("item_creation_date"))
+    if not created_at:
+        return None
+
+    now = now or datetime.now(timezone.utc)
+    return max(0, (now - created_at).days)
+
+
+def build_listing_age_summary(comparables):
+    ages = [
+        age
+        for age in (_listing_age_days(listing) for listing in comparables or [])
+        if age is not None
+    ]
+
+    if not ages:
+        return None
+
+    sorted_ages = sorted(ages)
+    middle = len(sorted_ages) // 2
+    median_age_days = (
+        (sorted_ages[middle - 1] + sorted_ages[middle]) / 2
+        if len(sorted_ages) % 2 == 0
+        else sorted_ages[middle]
+    )
+
+    return {
+        "listing_age_count": len(sorted_ages),
+        "fresh_listing_count_7d": sum(1 for age in sorted_ages if age <= 7),
+        "fresh_listing_count_30d": sum(1 for age in sorted_ages if age <= 30),
+        "stale_listing_count_90d": sum(1 for age in sorted_ages if age >= 90),
+        "median_age_days": median_age_days,
+        "oldest_age_days": max(sorted_ages),
+        "newest_age_days": min(sorted_ages),
+    }
+
+
+def build_market_confidence(
+    average_price,
+    median_price,
+    lowest_price,
+    highest_price,
+    comparable_count,
+    comparables=None,
+):
+    signals = []
+    score = 0
+    spread_pct = calculate_spread_pct(average_price, lowest_price, highest_price)
+    listing_age_summary = build_listing_age_summary(comparables)
+
+    if comparable_count >= 30:
+        score += 40
+        signals.append(f"{comparable_count} comparable listings analyzed")
+    elif comparable_count >= 10:
+        score += 30
+        signals.append(f"{comparable_count} comparable listings analyzed")
+    elif comparable_count >= 3:
+        score += 15
+        signals.append(f"{comparable_count} comparable listings analyzed")
+    elif comparable_count > 0:
+        signals.append(f"Only {comparable_count} comparable listings analyzed")
+    else:
+        signals.append("No comparable listings matched")
+
+    if median_price and median_price > 0:
+        score += 20
+        signals.append("Median price available")
+
+    if spread_pct is not None:
+        if spread_pct <= 20:
+            score += 30
+            signals.append("Low price volatility")
+        elif spread_pct <= 45:
+            score += 15
+            signals.append("Moderate price volatility")
+        else:
+            signals.append("High price volatility")
+
+    if listing_age_summary:
+        fresh_30d = listing_age_summary["fresh_listing_count_30d"]
+        stale_90d = listing_age_summary["stale_listing_count_90d"]
+        age_count = listing_age_summary["listing_age_count"]
+
+        if fresh_30d >= 10:
+            score += 10
+            signals.append(f"{fresh_30d} active comparables listed in the last 30 days")
+        elif fresh_30d >= 3:
+            score += 5
+            signals.append(f"{fresh_30d} active comparables listed in the last 30 days")
+
+        if age_count and stale_90d / age_count >= 0.5:
+            score -= 10
+            signals.append("Many comparable listings are older than 90 days")
+
+    score = round(max(0, min(100, score)))
+    if score >= 75:
+        level = "High"
+    elif score >= 45:
+        level = "Medium"
+    else:
+        level = "Low"
+
+    return {
+        "level": level,
+        "score": score,
+        "signals": signals,
+        "spread_pct": spread_pct,
+        "listing_age_summary": listing_age_summary,
+        "sales_velocity_30d": None,
+    }
 
 
 def build_seller_summary(comparables):
@@ -274,7 +405,7 @@ def generate_insights(
         and lowest_price is not None
         and highest_price is not None
     ):
-        spread_pct = (highest_price - lowest_price) / average_price * 100
+        spread_pct = calculate_spread_pct(average_price, lowest_price, highest_price)
         if spread_pct <= 20:
             insights.append(
                 "Prices for this product are tightly clustered, increasing confidence in the estimate."
@@ -327,6 +458,14 @@ def build_analysis_response(
         "price_delta": price_delta,
         "percent_delta": percent_delta,
         "cached": cached,
+        "market_confidence": build_market_confidence(
+            average_price,
+            median_price,
+            lowest_price,
+            highest_price,
+            listing_count,
+            comparables,
+        ),
         "insights": generate_insights(
             current_price,
             average_price,

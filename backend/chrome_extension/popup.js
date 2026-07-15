@@ -188,10 +188,26 @@ function renderPopup(data) {
       : "—";
   const sellerSummary = analysis?.seller_summary;
   const topSeller = sellerSummary?.top_seller;
+  const marketConfidence = analysis?.market_confidence;
   const insights = Array.isArray(analysis?.insights) ? analysis.insights : [];
   const recommendedListings = Array.isArray(analysis?.recommended_listings)
     ? analysis.recommended_listings
     : [];
+  const confidenceHtml = marketConfidence
+    ? `
+      <section class="confidence">
+        <div class="confidence-header">
+          <span class="confidence-label">Confidence</span>
+          <span class="confidence-level">${escapeHtml(marketConfidence.level || "Low")}</span>
+        </div>
+        <div class="confidence-signals">
+          ${(Array.isArray(marketConfidence.signals) ? marketConfidence.signals : [])
+            .map((signal) => `<span>${escapeHtml(signal)}</span>`)
+            .join("")}
+        </div>
+      </section>
+    `
+    : "";
   const insightHtml = insights.length
     ? `
       <div class="insights">
@@ -294,6 +310,7 @@ function renderPopup(data) {
         <span class="value">${analysis ? (analysis.cached ? "Cached" : "Just Now") : "Pending"}</span>
       </div>
     </div>
+    ${confidenceHtml}
     ${insightHtml}
     ${recommendationsHtml}
     <div class="meter" aria-hidden="true">
