@@ -52,6 +52,17 @@ const formatListingMeta = (listing) => {
   return parts.join(" · ");
 };
 
+function getFeedbackKey(product, analysis) {
+  return (
+    product.item_id ||
+    product.source ||
+    product.url ||
+    product.name ||
+    analysis?.normalized_name ||
+    "latest-analysis"
+  );
+}
+
 function getScoreClass(score) {
   if (typeof score !== "number") return "neutral";
   if (score >= 80) return "good";
@@ -132,6 +143,8 @@ function renderPopup(data) {
 
   const product = data.lastProduct;
   const analysis = data.lastAnalysis;
+  const feedbackKey = getFeedbackKey(product, analysis);
+  const savedFeedback = data.analysisFeedback?.[feedbackKey] || {};
   const summary = data.lastBulkSummary;
   const title = product.name || product.title || "Unknown";
   const currentPrice = analysis?.current_price ?? product.current_price ?? product.price;
@@ -210,6 +223,30 @@ function renderPopup(data) {
       </section>
     `
     : "";
+  const helpfulChoice = savedFeedback.helpful;
+  const hasReportedComparables = Boolean(savedFeedback.incorrectComparables);
+  const feedbackNote = hasReportedComparables
+    ? "Thanks. This report is saved in this browser for review."
+    : helpfulChoice
+    ? "Thanks for the feedback."
+    : "Your feedback helps tune future scoring.";
+  const feedbackHtml = analysis
+    ? `
+      <section class="feedback" data-feedback-key="${escapeHtml(feedbackKey)}">
+        <div class="feedback-row">
+          <span class="feedback-question">Was this analysis helpful?</span>
+          <div class="feedback-actions" role="group" aria-label="Analysis feedback">
+            <button class="feedback-button ${helpfulChoice === "up" ? "selected" : ""}" type="button" data-feedback-choice="up" aria-label="Yes, this analysis was helpful">👍</button>
+            <button class="feedback-button ${helpfulChoice === "down" ? "selected" : ""}" type="button" data-feedback-choice="down" aria-label="No, this analysis was not helpful">👎</button>
+          </div>
+        </div>
+        <button class="report-button ${hasReportedComparables ? "reported" : ""}" type="button" data-report-comparables="true">
+          ${hasReportedComparables ? "Incorrect comparables reported" : "Report incorrect comparables"}
+        </button>
+        <div class="feedback-note">${escapeHtml(feedbackNote)}</div>
+      </section>
+    `
+    : "";
 
   const html = `
     <section class="summary">
@@ -262,6 +299,7 @@ function renderPopup(data) {
     <div class="meter" aria-hidden="true">
       <div class="meter-fill" style="width: ${scoreWidth}%"></div>
     </div>
+    ${feedbackHtml}
   `;
 
   content.innerHTML = html;
@@ -269,12 +307,53 @@ function renderPopup(data) {
 
 function refreshPopup() {
   chrome.storage.local.get(
-    ["lastAnalysis", "lastAnalysisError", "lastProduct", "lastBulkSummary", "lastPageType"],
+    [
+      "lastAnalysis",
+      "lastAnalysisError",
+      "lastProduct",
+      "lastBulkSummary",
+      "lastPageType",
+      "analysisFeedback",
+    ],
     renderPopup
   );
 }
 
 refreshPopup();
+
+content.addEventListener("click", (event) => {
+  const feedbackButton = event.target.closest("[data-feedback-choice]");
+  const reportButton = event.target.closest("[data-report-comparables]");
+
+  if (!feedbackButton && !reportButton) return;
+
+  const feedbackSection = event.target.closest("[data-feedback-key]");
+  if (!feedbackSection) return;
+
+  const feedbackKey = feedbackSection.dataset.feedbackKey;
+  chrome.storage.local.get(["analysisFeedback"], ({ analysisFeedback = {} }) => {
+    const currentFeedback = analysisFeedback[feedbackKey] || {};
+    const nextFeedback = {
+      ...currentFeedback,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (feedbackButton) {
+      nextFeedback.helpful = feedbackButton.dataset.feedbackChoice;
+    }
+
+    if (reportButton) {
+      nextFeedback.incorrectComparables = true;
+    }
+
+    chrome.storage.local.set({
+      analysisFeedback: {
+        ...analysisFeedback,
+        [feedbackKey]: nextFeedback,
+      },
+    });
+  });
+});
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== "local") return;
@@ -284,7 +363,8 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     changes.lastAnalysisError ||
     changes.lastProduct ||
     changes.lastBulkSummary ||
-    changes.lastPageType
+    changes.lastPageType ||
+    changes.analysisFeedback
   ) {
     refreshPopup();
   }
