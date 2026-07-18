@@ -230,6 +230,8 @@ curl http://localhost:8000/health
 - Add a React-based extension UI
 - Add automated tests for normalization and market scoring
 - Add screenshots and demo assets
+- Deploy application for testing 
+- Let 5-10 users test the extension and give feedback
 
 ## License
 
