@@ -1,5 +1,5 @@
 const url = window.location.href;
-const API_BASE_URL = "http://https://price-intel-3wv4.onrender.com:8000";
+const API_BASE_URL = "https://price-intel-3wv4.onrender.com";
 
 if (url.includes("/sch/")) {
     chrome.storage.local.set({ lastPageType: "search" });
