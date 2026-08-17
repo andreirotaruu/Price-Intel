@@ -13,8 +13,8 @@ from backend.services.normalize import (
     build_product_profile,
     enrich_product_profile,
     normalize_name,
+    profile_similarity_score,
     products_are_comparable,
-    token_similarity_score,
 )
 from backend.providers.ebay_api import EbayAPIError, EbayAPIProvider
 from backend.schemas.collect_request import CollectRequest, CollectBulkRequest
@@ -116,7 +116,7 @@ def _build_listing_from_item(item, request_profile):
         "title": item["title"],
         "normalized_name": item_profile["match_key"],
         "attributes": item_profile,
-        "similarity_score": token_similarity_score(request_profile, item_profile),
+        "similarity_score": profile_similarity_score(request_profile, item_profile),
         "price": float(item["price"]["value"]),
         "condition": item.get("condition"),
         "shipping": float(

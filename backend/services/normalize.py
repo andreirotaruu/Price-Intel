@@ -3,6 +3,24 @@ import re
 GPU_SERIES_RE = re.compile(r"\b(?P<series>rtx|gtx|rx|arc)\s*(?P<model>\d{3,4})\b")
 GPU_MEMORY_RE = re.compile(r"\b(?P<memory>\d+)\s*gb\b")
 GPU_MEMORY_COMPACT_RE = re.compile(r"\b(?P<memory>\d+)gb\b")
+IPHONE_RE = re.compile(
+    r"\biphone\s*(?P<generation>\d{1,2}[a-z]?|se)"
+    r"(?:\s*(?P<variant>pro\s+max|pro|plus|mini))?\b"
+)
+GALAXY_RE = re.compile(
+    r"\bgalaxy\s*(?P<generation>(?:s|z\s*(?:fold|flip)|a)\s*\d{1,2})"
+    r"(?:\s*(?P<variant>ultra|plus|fe))?\b"
+)
+PIXEL_RE = re.compile(
+    r"\bpixel\s*(?P<generation>\d{1,2}[a-z]?)"
+    r"(?:\s*(?P<variant>pro\s+fold|pro|fold|a))?\b"
+)
+PLAYSTATION_RE = re.compile(r"\b(?:playstation\s*|ps\s*)(?P<generation>[345])\b")
+XBOX_RE = re.compile(r"\bxbox\s*(?P<generation>series\s*[xs]|one(?:\s*[xs])?)\b")
+SONY_HEADPHONE_RE = re.compile(
+    r"\b(?P<family>wh|wf)[-\s]?(?P<model>(?:1000xm|ch)\d+[a-z]?)\b"
+)
+STORAGE_RE = re.compile(r"\b(?P<size>\d+)\s*(?P<unit>gb|tb)\b")
 ACCESSORY_PATTERNS = (
     re.compile(
         r"\b(cooler|heatsink|heat sink|fan|shroud|backplate|water ?block|box|packaging|manual|cable|adapter|bracket)\s+only\b"
@@ -11,6 +29,11 @@ ACCESSORY_PATTERNS = (
     re.compile(
         r"\b(case|cover|screen protector|charger|cooler|heatsink|water ?block|replacement fan)\s+for\b"
     ),
+    re.compile(r"\b(case|cover|box|packaging|manual|stand|dock|controller)\s+only\b"),
+    re.compile(
+        r"\b(replacement\s+(?:ear\s*pads?|ear\s*cups?|headband|cable)|ear\s*pads?|ear\s*cups?)\b"
+    ),
+    re.compile(r"\b(stand|dock|controller|faceplate|skin)\s+for\s+(?:sony\s+)?(?:playstation|ps)\s*[345]\b"),
 )
 
 STOP_WORDS = {
@@ -84,6 +107,32 @@ def token_similarity_score(target: dict, candidate: dict) -> float:
     jaccard = intersection / union
     containment = intersection / smaller
     return round((jaccard * 0.6) + (containment * 0.4), 3)
+
+
+def profile_similarity_score(target: dict, candidate: dict) -> float:
+    """Score known identity fields, with title overlap as the generic fallback."""
+    if target.get("product_type") != candidate.get("product_type"):
+        return 0.0
+
+    token_score = token_similarity_score(target, candidate)
+    if target.get("product_type") == "generic":
+        return token_score
+
+    weighted_fields = {
+        "brand": 0.15,
+        "model": 0.5,
+        "storage": 0.1,
+        "variant": 0.05,
+        "edition": 0.05,
+    }
+    score = token_score * 0.15
+    for field, weight in weighted_fields.items():
+        target_value = target.get(field)
+        candidate_value = candidate.get(field)
+        if target_value and candidate_value and target_value == candidate_value:
+            score += weight
+
+    return round(min(score, 1.0), 3)
 
 
 def enrich_product_profile(profile: dict, item: dict | None) -> dict:
@@ -272,6 +321,160 @@ def _extract_gpu_attributes(text: str, tokens: list[str]) -> dict:
     return attributes
 
 
+def _extract_storage(text: str) -> str | None:
+    """Choose the largest capacity, which avoids treating phone RAM as storage."""
+    capacities = []
+    for match in STORAGE_RE.finditer(text):
+        size = int(match.group("size"))
+        unit = match.group("unit")
+        capacities.append((size * (1024 if unit == "tb" else 1), f"{size}{unit}"))
+    return max(capacities, default=(0, None))[1]
+
+
+def _structured_profile(
+    *,
+    category: str,
+    brand: str | None,
+    model: str,
+    title_tokens: list[str],
+    is_accessory_or_parts: bool,
+    **attributes,
+) -> dict:
+    identity_parts = [brand, model]
+    if category == "console":
+        identity_parts.extend(
+            value for value in (attributes.get("variant"), attributes.get("edition")) if value
+        )
+    storage = attributes.get("storage")
+    if storage:
+        identity_parts.append(storage)
+
+    normalized_name = " ".join(part for part in identity_parts if part)
+    return {
+        "category": category,
+        "product_type": category,
+        "brand": brand,
+        "model": model,
+        "normalized_name": normalized_name,
+        "match_key": normalized_name,
+        "title_tokens": title_tokens,
+        "is_accessory_or_parts": is_accessory_or_parts,
+        "series": None,
+        "variant": None,
+        "edition": None,
+        "memory": None,
+        "storage": None,
+        **attributes,
+    }
+
+
+def _extract_phone_attributes(
+    text: str, title_tokens: list[str], is_accessory_or_parts: bool
+) -> dict:
+    match = IPHONE_RE.search(text)
+    brand = "apple"
+    family = "iphone"
+    if not match:
+        match = GALAXY_RE.search(text)
+        brand = "samsung"
+        family = "galaxy"
+    if not match:
+        match = PIXEL_RE.search(text)
+        brand = "google"
+        family = "pixel"
+    if not match:
+        return {}
+
+    generation = re.sub(r"\s+", "", match.group("generation"))
+    variant = re.sub(r"\s+", " ", match.groupdict().get("variant") or "").strip() or None
+    model = " ".join(part for part in (family, generation, variant) if part)
+    return _structured_profile(
+        category="phone",
+        brand=brand,
+        model=model,
+        generation=generation,
+        model_variant=variant,
+        storage=_extract_storage(text),
+        title_tokens=title_tokens,
+        is_accessory_or_parts=is_accessory_or_parts,
+    )
+
+
+def _extract_console_attributes(
+    text: str, title_tokens: list[str], is_accessory_or_parts: bool
+) -> dict:
+    match = PLAYSTATION_RE.search(text)
+    if match:
+        brand = "sony"
+        generation = match.group("generation")
+        console = "playstation"
+        model = f"playstation {generation}"
+    else:
+        match = XBOX_RE.search(text)
+        if match:
+            brand = "microsoft"
+            generation = re.sub(r"\s+", " ", match.group("generation")).strip()
+            console = "xbox"
+            model = f"xbox {generation}"
+        elif "nintendo switch" in text:
+            brand = "nintendo"
+            generation = "switch"
+            console = "switch"
+            model = "switch"
+        else:
+            return {}
+
+    variant = next(
+        (
+            value
+            for value in ("slim", "pro", "oled", "lite")
+            if re.search(rf"\b{value}\b", text)
+        ),
+        None,
+    )
+    edition = None
+    if re.search(r"\bdigital(?:\s+edition)?\b", text):
+        edition = "digital"
+    elif re.search(r"\b(disc|disk)(?:\s+edition)?\b", text):
+        edition = "disc"
+
+    return _structured_profile(
+        category="console",
+        brand=brand,
+        model=model,
+        console=console,
+        generation=generation,
+        variant=variant,
+        edition=edition,
+        storage=_extract_storage(text),
+        title_tokens=title_tokens,
+        is_accessory_or_parts=is_accessory_or_parts,
+    )
+
+
+def _extract_headphone_attributes(
+    text: str, title_tokens: list[str], is_accessory_or_parts: bool
+) -> dict:
+    match = SONY_HEADPHONE_RE.search(text)
+    if not match:
+        return {}
+
+    family = match.group("family")
+    model_body = match.group("model")
+    model_number = f"{family}-{model_body}"
+    generation_match = re.search(r"xm(?P<generation>\d+)", model_body)
+    generation = generation_match.group("generation") if generation_match else None
+    return _structured_profile(
+        category="headphones",
+        brand="sony",
+        model=model_number,
+        model_number=model_number,
+        generation=generation,
+        title_tokens=title_tokens,
+        is_accessory_or_parts=is_accessory_or_parts,
+    )
+
+
 def build_product_profile(name: str) -> dict:
     text = _normalize_text(name)
     tokens = text.replace("-", " ").split()
@@ -279,13 +482,24 @@ def build_product_profile(name: str) -> dict:
     is_accessory_or_parts = _is_accessory_or_parts(text)
     gpu_attributes = _extract_gpu_attributes(text, tokens)
     if gpu_attributes:
+        gpu_attributes["category"] = "gpu"
         gpu_attributes["title_tokens"] = title_tokens
         gpu_attributes["is_accessory_or_parts"] = is_accessory_or_parts
         return gpu_attributes
 
+    for extractor in (
+        _extract_phone_attributes,
+        _extract_console_attributes,
+        _extract_headphone_attributes,
+    ):
+        attributes = extractor(text, title_tokens, is_accessory_or_parts)
+        if attributes:
+            return attributes
+
     words = title_tokens
     normalized_name = " ".join(words)
     return {
+        "category": "generic",
         "product_type": "generic",
         "normalized_name": normalized_name,
         "match_key": normalized_name,
@@ -295,12 +509,16 @@ def build_product_profile(name: str) -> dict:
         "variant": None,
         "edition": None,
         "memory": None,
+        "storage": None,
         "title_tokens": title_tokens,
         "is_accessory_or_parts": is_accessory_or_parts,
     }
 
 
 def build_market_search_query(profile: dict, fallback_name: str) -> str:
+    if profile.get("product_type") not in {"gpu", "phone", "console", "headphones"}:
+        return profile.get("normalized_name") or fallback_name
+
     if profile.get("product_type") != "gpu":
         return profile.get("normalized_name") or fallback_name
 
@@ -327,10 +545,25 @@ def products_are_comparable(target: dict, candidate: dict) -> bool:
     if not _structured_profiles_are_compatible(target, candidate):
         return False
 
-    if target.get("product_type") != "gpu":
+    product_type = target.get("product_type")
+    if product_type == "generic":
         if _profiles_share_identifier(target, candidate):
             return True
-        return token_similarity_score(target, candidate) >= 0.62
+        return profile_similarity_score(target, candidate) >= 0.62
+
+    if product_type in {"phone", "console", "headphones"}:
+        for field in ("brand", "model"):
+            target_value = target.get(field)
+            candidate_value = candidate.get(field)
+            if target_value and target_value != candidate_value:
+                return False
+
+        for field in ("storage", "variant", "edition"):
+            target_value = target.get(field)
+            candidate_value = candidate.get(field)
+            if target_value and candidate_value and target_value != candidate_value:
+                return False
+        return True
 
     for field in ("brand", "series", "model"):
         target_value = target.get(field)

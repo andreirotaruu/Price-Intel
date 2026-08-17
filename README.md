@@ -81,11 +81,18 @@ The normalization service extracts fields such as:
 - brand
 - series
 - model
+- generation and model variant
 - variant
 - edition
-- memory
+- memory or storage capacity
+- headphone model number
 - title tokens
 - accessory or parts status
+
+Category-specific rules currently cover GPUs, phones (iPhone, Galaxy, and Pixel),
+consoles (PlayStation, Xbox, and Nintendo Switch), and Sony WH/WF headphones.
+Recognized categories use hard identity checks before a listing is accepted. Unknown
+products fall back to a title-token similarity score until dedicated rules are added.
 
 When eBay metadata is available, the backend enriches profiles with category IDs, product identifiers, item aspects, and condition groups. That helps prevent bad comparables such as replacement parts, boxes, accessories, or mismatched product variants from affecting the market estimate.
 
