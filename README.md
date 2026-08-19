@@ -239,6 +239,7 @@ curl http://localhost:8000/health
 - Add screenshots and demo assets
 - Deploy application for testing 
 - Let 5-10 users test the extension and give feedback
+- Need to switch to supabase 
 
 ## License
 
